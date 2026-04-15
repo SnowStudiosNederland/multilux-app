@@ -1,21 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-
-// ── Fake data ──────────────────────────────────────────────
-const DEMO_USERS = {
-  klant: { email: "klant@demo.nl", ww: "klant123", rol: "klant", naam: "Jan de Vries" },
-  admin: { email: "admin@multilux.nl", ww: "admin123", rol: "admin", naam: "Lisa Bakker" },
-};
-
-const PRODUCT_TYPES = [
-  { id: "rolgordijn", label: "Rolgordijn", icon: "▦", kleuren: ["Wit", "Crème", "Grijs", "Antraciet", "Zwart", "Zand"] },
-  { id: "jaloezie", label: "Jaloezie", icon: "☰", kleuren: ["Wit", "Zilver", "Hout Naturel", "Hout Donker", "Antraciet"] },
-  { id: "plisse", label: "Plissé", icon: "⌇", kleuren: ["Wit", "Crème", "Lichtgrijs", "Taupe", "Antraciet", "Koraal"] },
-  { id: "vouwgordijn", label: "Vouwgordijn", icon: "▤", kleuren: ["Wit", "Linnen", "Zand", "Grijs", "Donkerblauw"] },
-  { id: "duorolgordijn", label: "Duo Rolgordijn", icon: "▥", kleuren: ["Wit", "Crème", "Grijs", "Zwart", "Taupe"] },
-  { id: "houten-jaloezie", label: "Houten Jaloezie", icon: "▧", kleuren: ["Wit", "Naturel", "Eiken", "Walnoot", "Zwart"] },
-];
-
-const MONTAGETYPES = ["Plafond", "Muur", "In de dag", "Op de dag"];
+import { useState, useEffect } from "react";
+import { supabase } from "./supabase";
 
 // ── Styles ─────────────────────────────────────────────────
 const fonts = `
@@ -43,14 +27,15 @@ const vars = {
   fontFamily: "'DM Sans', sans-serif",
 };
 
-// ── Helpers ────────────────────────────────────────────────
-const fmt = (n) => `€ ${Number(n).toFixed(2).replace(".", ",")}`;
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("nl-NL", { day: "2-digit", month: "short", year: "numeric" });
-const genId = () => Math.random().toString(36).slice(2, 10).toUpperCase();
+const MONTAGETYPES = ["Plafond", "Muur", "In de dag", "Op de dag"];
 const statusKleur = { nieuw: "#E67E22", verwerkt: "#2980B9", gereed: "#27AE60", geannuleerd: "#C0392B" };
 
-// ── Components ─────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────
+const fmtDate = (d) =>
+  new Date(d).toLocaleDateString("nl-NL", { day: "2-digit", month: "short", year: "numeric" });
+const genOrderNr = () => "ML-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+// ── UI Components ──────────────────────────────────────────
 
 function Badge({ children, color }) {
   return (
@@ -127,19 +112,52 @@ function Card({ children, style }) {
   );
 }
 
-// ── LOGIN ──────────────────────────────────────────────────
+function Loader() {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: 60 }}>
+      <div style={{
+        width: 36, height: 36, border: "3px solid var(--ml-border)",
+        borderTopColor: "var(--ml-primary)", borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ── LOGIN / REGISTRATIE ────────────────────────────────────
 function LoginPage({ onLogin }) {
+  const [mode, setMode] = useState("login"); // login | register
   const [email, setEmail] = useState("");
   const [ww, setWw] = useState("");
+  const [naam, setNaam] = useState("");
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
   const [anim, setAnim] = useState(false);
+  const [success, setSuccess] = useState("");
 
   useEffect(() => { setTimeout(() => setAnim(true), 100); }, []);
 
-  const handleLogin = () => {
-    const user = Object.values(DEMO_USERS).find(u => u.email === email && u.ww === ww);
-    if (user) { onLogin(user); }
-    else { setErr("Ongeldig e-mailadres of wachtwoord"); }
+  const handleLogin = async () => {
+    setErr(""); setLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: ww });
+    setLoading(false);
+    if (error) { setErr("Ongeldig e-mailadres of wachtwoord"); return; }
+    onLogin(data.user);
+  };
+
+  const handleRegister = async () => {
+    setErr(""); setLoading(true);
+    if (!naam.trim()) { setErr("Vul een naam in"); setLoading(false); return; }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: ww,
+      options: { data: { naam: naam.trim(), rol: "klant" } },
+    });
+    setLoading(false);
+    if (error) { setErr(error.message); return; }
+    setSuccess("Account aangemaakt! Controleer je e-mail om je account te bevestigen.");
+    setMode("login");
   };
 
   return (
@@ -147,13 +165,12 @@ function LoginPage({ onLogin }) {
       minHeight: "100vh", display: "flex", background: "var(--ml-primary-dark)",
       fontFamily: vars.fontFamily,
     }}>
-      {/* Left panel - branding */}
+      {/* Left panel */}
       <div style={{
         flex: 1, display: "flex", flexDirection: "column", justifyContent: "center",
         alignItems: "center", padding: 60, position: "relative", overflow: "hidden",
         background: "linear-gradient(145deg, #1E332B 0%, #2D4A3E 50%, #3D6454 100%)",
       }}>
-        {/* Decorative shapes */}
         <div style={{
           position: "absolute", top: -100, right: -100, width: 400, height: 400,
           borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)",
@@ -162,11 +179,6 @@ function LoginPage({ onLogin }) {
           position: "absolute", bottom: -60, left: -60, width: 250, height: 250,
           borderRadius: "50%", background: "rgba(196,149,106,0.08)",
         }} />
-        <div style={{
-          position: "absolute", top: "30%", left: "10%", width: 120, height: 120,
-          borderRadius: "50%", border: "1px solid rgba(255,255,255,0.04)",
-        }} />
-
         <div style={{
           opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)",
           transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1,
@@ -177,29 +189,39 @@ function LoginPage({ onLogin }) {
           <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: 4, textTransform: "uppercase", marginTop: 12 }}>
             Binnenzonwering
           </div>
-          <div style={{
-            width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto",
-            borderRadius: 1,
-          }} />
+          <div style={{ width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto", borderRadius: 1 }} />
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>
             Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.
           </p>
         </div>
       </div>
 
-      {/* Right panel - login form */}
+      {/* Right panel */}
       <div style={{
         width: 480, display: "flex", flexDirection: "column", justifyContent: "center",
         padding: 60, background: "var(--ml-bg)",
         opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)",
         transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s",
       }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>Welkom terug</h2>
+        <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>
+          {mode === "login" ? "Welkom terug" : "Account aanmaken"}
+        </h2>
         <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 36px" }}>
-          Log in op uw Multilux account
+          {mode === "login" ? "Log in op uw Multilux account" : "Registreer als nieuwe klant"}
         </p>
 
+        {success && (
+          <div style={{
+            marginBottom: 20, padding: "10px 16px", borderRadius: 8,
+            background: "var(--ml-success)15", color: "var(--ml-success)",
+            fontSize: 13, fontWeight: 500,
+          }}>✓ {success}</div>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {mode === "register" && (
+            <Input label="Naam" value={naam} onChange={setNaam} placeholder="Uw volledige naam" />
+          )}
           <Input label="E-mailadres" type="email" value={email} onChange={setEmail} placeholder="uw@email.nl" />
           <Input label="Wachtwoord" type="password" value={ww} onChange={setWw} placeholder="••••••••" />
         </div>
@@ -212,31 +234,33 @@ function LoginPage({ onLogin }) {
           }}>⚠ {err}</div>
         )}
 
-        <Btn onClick={handleLogin} style={{ marginTop: 28, width: "100%", padding: "14px 28px", fontSize: 15 }}>
-          Inloggen →
+        <Btn onClick={mode === "login" ? handleLogin : handleRegister}
+          disabled={loading}
+          style={{ marginTop: 28, width: "100%", padding: "14px 28px", fontSize: 15 }}>
+          {loading ? "Even geduld..." : mode === "login" ? "Inloggen →" : "Registreren →"}
         </Btn>
 
-        <div style={{
-          marginTop: 40, padding: "20px 24px", background: "var(--ml-surface-alt)",
-          borderRadius: 10, fontSize: 13, color: "var(--ml-text-light)", lineHeight: 1.7,
-        }}>
-          <strong style={{ color: "var(--ml-text)", fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>Demo accounts</strong><br />
-          <span style={{ fontFamily: "monospace" }}>klant@demo.nl</span> / klant123 — Klant<br />
-          <span style={{ fontFamily: "monospace" }}>admin@multilux.nl</span> / admin123 — Beheerder
-        </div>
+        <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setErr(""); setSuccess(""); }}
+          style={{
+            marginTop: 20, background: "none", border: "none", cursor: "pointer",
+            color: "var(--ml-primary)", fontSize: 14, fontFamily: vars.fontFamily, fontWeight: 500,
+          }}>
+          {mode === "login" ? "Nog geen account? Registreer hier" : "Heb al een account? Log in"}
+        </button>
       </div>
     </div>
   );
 }
 
-// ── SIDEBAR NAV ────────────────────────────────────────────
-function Sidebar({ user, actief, onNav, onLogout }) {
-  const isAdmin = user.rol === "admin";
+// ── SIDEBAR ────────────────────────────────────────────────
+function Sidebar({ profiel, actief, onNav, onLogout }) {
+  const isAdmin = profiel?.rol === "admin";
   const items = isAdmin
     ? [
         { id: "dashboard", label: "Dashboard", icon: "◫" },
         { id: "bestellingen", label: "Bestellingen", icon: "☰" },
         { id: "klanten", label: "Klanten", icon: "◉" },
+        { id: "producten", label: "Producten", icon: "▦" },
       ]
     : [
         { id: "bestellen", label: "Nieuwe Bestelling", icon: "＋" },
@@ -273,10 +297,12 @@ function Sidebar({ user, actief, onNav, onLogout }) {
       </nav>
 
       <div style={{ padding: "20px 20px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500, marginBottom: 4 }}>{user.naam}</div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>{user.email}</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500, marginBottom: 4 }}>{profiel?.naam}</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{profiel?.email}</div>
+        <Badge color={profiel?.rol === "admin" ? "#E67E22" : "#27AE60"}>{profiel?.rol}</Badge>
+        <br />
         <Btn variant="ghost" small onClick={onLogout}
-          style={{ color: "rgba(255,255,255,0.4)", padding: "6px 0", fontSize: 12 }}>
+          style={{ color: "rgba(255,255,255,0.4)", padding: "6px 0", fontSize: 12, marginTop: 12 }}>
           Uitloggen
         </Btn>
       </div>
@@ -285,8 +311,8 @@ function Sidebar({ user, actief, onNav, onLogout }) {
 }
 
 // ── KLANT: BESTELFORMULIER ─────────────────────────────────
-function BestelForm({ onBestel }) {
-  const [product, setProduct] = useState("");
+function BestelForm({ profiel, producten, onBesteld }) {
+  const [productId, setProductId] = useState("");
   const [kleur, setKleur] = useState("");
   const [breedte, setBreedte] = useState("");
   const [hoogte, setHoogte] = useState("");
@@ -294,13 +320,14 @@ function BestelForm({ onBestel }) {
   const [aantal, setAantal] = useState("1");
   const [opmerking, setOpmerking] = useState("");
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
   const [succes, setSucces] = useState(false);
 
-  const gekozenProduct = PRODUCT_TYPES.find(p => p.id === product);
+  const gekozenProduct = producten.find(p => p.id === productId);
 
   const validate = () => {
     const e = {};
-    if (!product) e.product = "Selecteer een product";
+    if (!productId) e.product = "Selecteer een product";
     if (!kleur) e.kleur = "Selecteer een kleur";
     if (!breedte || breedte < 20) e.breedte = "Min. 20 cm";
     if (!hoogte || hoogte < 20) e.hoogte = "Min. 20 cm";
@@ -312,16 +339,27 @@ function BestelForm({ onBestel }) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    onBestel({
-      id: genId(), product, kleur, breedte: +breedte, hoogte: +hoogte,
-      montage, aantal: +aantal, opmerking, datum: new Date().toISOString(), status: "nieuw",
+    setLoading(true);
+    const { error } = await supabase.from("bestellingen").insert({
+      order_nr: genOrderNr(),
+      klant_id: profiel.id,
+      product_id: productId,
+      kleur,
+      breedte: +breedte,
+      hoogte: +hoogte,
+      montage,
+      aantal: +aantal,
+      opmerking,
     });
+    setLoading(false);
+    if (error) { alert("Fout bij plaatsen bestelling: " + error.message); return; }
     setSucces(true);
+    onBesteld();
     setTimeout(() => {
       setSucces(false);
-      setProduct(""); setKleur(""); setBreedte(""); setHoogte("");
+      setProductId(""); setKleur(""); setBreedte(""); setHoogte("");
       setMontage(""); setAantal("1"); setOpmerking(""); setErrors({});
     }, 3000);
   };
@@ -344,41 +382,32 @@ function BestelForm({ onBestel }) {
 
   return (
     <div style={{ padding: 40, maxWidth: 900 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>
-        Nieuwe Bestelling
-      </h1>
+      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Nieuwe Bestelling</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 32px" }}>
         Vul de maten en specificaties van uw binnenzonwering in.
       </p>
 
-      {/* Product selectie */}
       <Card style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>
-          1. Kies uw product
-        </h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>1. Kies uw product</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {PRODUCT_TYPES.map(p => (
-            <button key={p.id} onClick={() => { setProduct(p.id); setKleur(""); }}
+          {producten.filter(p => p.actief).map(p => (
+            <button key={p.id} onClick={() => { setProductId(p.id); setKleur(""); }}
               style={{
-                padding: "20px 16px", border: `2px solid ${product === p.id ? "var(--ml-primary)" : "var(--ml-border)"}`,
-                borderRadius: 10, background: product === p.id ? "var(--ml-primary)08" : "#fff",
-                cursor: "pointer", textAlign: "center", transition: "all .15s",
-                fontFamily: vars.fontFamily,
+                padding: "20px 16px", border: `2px solid ${productId === p.id ? "var(--ml-primary)" : "var(--ml-border)"}`,
+                borderRadius: 10, background: productId === p.id ? "var(--ml-primary)08" : "#fff",
+                cursor: "pointer", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily,
               }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{p.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: product === p.id ? 600 : 400,
-                color: product === p.id ? "var(--ml-primary)" : "var(--ml-text)" }}>{p.label}</div>
+              <div style={{ fontSize: 13, fontWeight: productId === p.id ? 600 : 400,
+                color: productId === p.id ? "var(--ml-primary)" : "var(--ml-text)" }}>{p.naam}</div>
             </button>
           ))}
         </div>
         {errors.product && <span style={{ fontSize: 12, color: "var(--ml-error)", marginTop: 8, display: "block" }}>{errors.product}</span>}
       </Card>
 
-      {/* Specificaties */}
       <Card style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>
-          2. Specificaties
-        </h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>2. Specificaties</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur}
             options={gekozenProduct ? gekozenProduct.kleuren : []} />
@@ -387,16 +416,11 @@ function BestelForm({ onBestel }) {
         </div>
       </Card>
 
-      {/* Maten */}
       <Card style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px", color: "var(--ml-primary)" }}>
-          3. Maten invoeren
-        </h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px", color: "var(--ml-primary)" }}>3. Maten invoeren</h3>
         <p style={{ fontSize: 13, color: "var(--ml-text-light)", margin: "0 0 20px" }}>
           Meet de exacte binnenafmetingen van uw raamkozijn in centimeters.
         </p>
-
-        {/* Visual helper */}
         <div style={{
           display: "flex", justifyContent: "center", marginBottom: 28, padding: 20,
           background: "var(--ml-surface-alt)", borderRadius: 10,
@@ -413,35 +437,24 @@ function BestelForm({ onBestel }) {
             <line x1="185" y1="10" x2="195" y2="10" stroke="var(--ml-accent)" strokeWidth="2" />
             <line x1="185" y1="130" x2="195" y2="130" stroke="var(--ml-accent)" strokeWidth="2" />
             <text x="188" y="75" textAnchor="middle" fill="var(--ml-accent)" fontSize="11" fontWeight="600"
-              transform="rotate(90 188 75)">
-              Hoogte: {hoogte || "—"} cm
-            </text>
-            {/* Blinds illustration */}
+              transform="rotate(90 188 75)">Hoogte: {hoogte || "—"} cm</text>
             {[0,1,2,3,4,5,6,7].map(i => (
               <line key={i} x1="36" y1={18 + i * 14} x2="164" y2={18 + i * 14}
                 stroke="var(--ml-primary)" strokeWidth="0.5" opacity="0.25" />
             ))}
           </svg>
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-          <Input label="Breedte" type="number" value={breedte} onChange={setBreedte}
-            placeholder="bijv. 120" suffix="cm" error={errors.breedte} />
-          <Input label="Hoogte" type="number" value={hoogte} onChange={setHoogte}
-            placeholder="bijv. 160" suffix="cm" error={errors.hoogte} />
-          <Input label="Aantal" type="number" value={aantal} onChange={setAantal}
-            placeholder="1" error={errors.aantal} />
+          <Input label="Breedte" type="number" value={breedte} onChange={setBreedte} placeholder="bijv. 120" suffix="cm" error={errors.breedte} />
+          <Input label="Hoogte" type="number" value={hoogte} onChange={setHoogte} placeholder="bijv. 160" suffix="cm" error={errors.hoogte} />
+          <Input label="Aantal" type="number" value={aantal} onChange={setAantal} placeholder="1" error={errors.aantal} />
         </div>
       </Card>
 
-      {/* Opmerking */}
       <Card style={{ marginBottom: 28 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>
-          4. Opmerkingen (optioneel)
-        </h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>4. Opmerkingen (optioneel)</h3>
         <textarea value={opmerking} onChange={e => setOpmerking(e.target.value)}
-          placeholder="Bijv. speciale montagewensen, draairichting, etc."
-          rows={3}
+          placeholder="Bijv. speciale montagewensen, draairichting, etc." rows={3}
           style={{
             width: "100%", boxSizing: "border-box", fontFamily: vars.fontFamily,
             fontSize: 14, padding: "12px 14px", border: "1.5px solid var(--ml-border)",
@@ -449,23 +462,20 @@ function BestelForm({ onBestel }) {
           }} />
       </Card>
 
-      <Btn onClick={handleSubmit} style={{ padding: "14px 48px", fontSize: 15 }}>
-        Bestelling plaatsen →
+      <Btn onClick={handleSubmit} disabled={loading} style={{ padding: "14px 48px", fontSize: 15 }}>
+        {loading ? "Bezig met plaatsen..." : "Bestelling plaatsen →"}
       </Btn>
     </div>
   );
 }
 
 // ── KLANT: MIJN BESTELLINGEN ───────────────────────────────
-function MijnBestellingen({ bestellingen }) {
+function MijnBestellingen({ bestellingen, producten, loading }) {
+  if (loading) return <Loader />;
   return (
     <div style={{ padding: 40, maxWidth: 900 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>
-        Mijn Bestellingen
-      </h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>
-        Overzicht van al uw geplaatste bestellingen.
-      </p>
+      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Mijn Bestellingen</h1>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van al uw geplaatste bestellingen.</p>
 
       {bestellingen.length === 0 ? (
         <Card style={{ textAlign: "center", padding: "60px 40px", color: "var(--ml-text-light)" }}>
@@ -475,7 +485,7 @@ function MijnBestellingen({ bestellingen }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {bestellingen.map(b => {
-            const prod = PRODUCT_TYPES.find(p => p.id === b.product);
+            const prod = producten.find(p => p.id === b.product_id);
             return (
               <Card key={b.id} style={{ padding: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -483,10 +493,10 @@ function MijnBestellingen({ bestellingen }) {
                     <div style={{
                       width: 48, height: 48, borderRadius: 10, background: "var(--ml-surface-alt)",
                       display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
-                    }}>{prod?.icon}</div>
+                    }}>{prod?.icon || "▦"}</div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 15, color: "var(--ml-text)" }}>
-                        {prod?.label} — {b.kleur}
+                        {prod?.naam || "Product"} — {b.kleur}
                       </div>
                       <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>
                         {b.breedte} × {b.hoogte} cm · {b.montage} · {b.aantal}×
@@ -496,7 +506,7 @@ function MijnBestellingen({ bestellingen }) {
                   <div style={{ textAlign: "right" }}>
                     <Badge color={statusKleur[b.status]}>{b.status}</Badge>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 6 }}>
-                      #{b.id} · {fmtDate(b.datum)}
+                      {b.order_nr} · {fmtDate(b.created_at)}
                     </div>
                   </div>
                 </div>
@@ -510,14 +520,13 @@ function MijnBestellingen({ bestellingen }) {
 }
 
 // ── ADMIN: DASHBOARD ───────────────────────────────────────
-function AdminDashboard({ bestellingen }) {
+function AdminDashboard({ bestellingen, producten }) {
   const stats = {
     totaal: bestellingen.length,
     nieuw: bestellingen.filter(b => b.status === "nieuw").length,
     verwerkt: bestellingen.filter(b => b.status === "verwerkt").length,
     gereed: bestellingen.filter(b => b.status === "gereed").length,
   };
-
   const statCards = [
     { label: "Totaal", waarde: stats.totaal, kleur: "var(--ml-primary)", icon: "☰" },
     { label: "Nieuw", waarde: stats.nieuw, kleur: "var(--ml-warning)", icon: "●" },
@@ -528,37 +537,27 @@ function AdminDashboard({ bestellingen }) {
   return (
     <div style={{ padding: 40 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Dashboard</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>
-        Overzicht van alle bestellingen
-      </p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van alle bestellingen</p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
         {statCards.map(s => (
           <Card key={s.label} style={{ padding: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {s.label}
-                </div>
-                <div style={{ fontSize: 36, fontWeight: 700, color: s.kleur, marginTop: 8, fontFamily: "'Playfair Display', serif" }}>
-                  {s.waarde}
-                </div>
+                <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 36, fontWeight: 700, color: s.kleur, marginTop: 8, fontFamily: "'Playfair Display', serif" }}>{s.waarde}</div>
               </div>
               <div style={{
                 width: 40, height: 40, borderRadius: 10, background: s.kleur + "12",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, color: s.kleur,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: s.kleur,
               }}>{s.icon}</div>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Recent orders mini table */}
       <Card>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>
-          Recente Bestellingen
-        </h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Recente Bestellingen</h3>
         {bestellingen.length === 0 ? (
           <p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Nog geen bestellingen.</p>
         ) : (
@@ -566,23 +565,21 @@ function AdminDashboard({ bestellingen }) {
             <thead>
               <tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>
                 {["Order", "Product", "Maten", "Status", "Datum"].map(h => (
-                  <th key={h} style={{
-                    textAlign: "left", padding: "10px 12px", color: "var(--ml-text-light)",
-                    fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1,
-                  }}>{h}</th>
+                  <th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "var(--ml-text-light)",
+                    fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {bestellingen.slice(-8).reverse().map(b => {
-                const prod = PRODUCT_TYPES.find(p => p.id === b.product);
+                const prod = producten.find(p => p.id === b.product_id);
                 return (
                   <tr key={b.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}>
-                    <td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace" }}>#{b.id}</td>
-                    <td style={{ padding: "10px 12px" }}>{prod?.label} – {b.kleur}</td>
+                    <td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace" }}>{b.order_nr}</td>
+                    <td style={{ padding: "10px 12px" }}>{prod?.naam} – {b.kleur}</td>
                     <td style={{ padding: "10px 12px" }}>{b.breedte}×{b.hoogte} cm</td>
                     <td style={{ padding: "10px 12px" }}><Badge color={statusKleur[b.status]}>{b.status}</Badge></td>
-                    <td style={{ padding: "10px 12px", color: "var(--ml-text-light)" }}>{fmtDate(b.datum)}</td>
+                    <td style={{ padding: "10px 12px", color: "var(--ml-text-light)" }}>{fmtDate(b.created_at)}</td>
                   </tr>
                 );
               })}
@@ -594,23 +591,19 @@ function AdminDashboard({ bestellingen }) {
   );
 }
 
-// ── ADMIN: ALLE BESTELLINGEN ───────────────────────────────
-function AdminBestellingen({ bestellingen, onStatusUpdate }) {
+// ── ADMIN: BESTELLINGEN ────────────────────────────────────
+function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
   return (
     <div style={{ padding: 40 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Bestellingen</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>
-        Beheer en verwerk alle binnenkomende bestellingen.
-      </p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer en verwerk alle bestellingen.</p>
 
       {bestellingen.length === 0 ? (
-        <Card style={{ textAlign: "center", padding: 48, color: "var(--ml-text-light)" }}>
-          Nog geen bestellingen ontvangen.
-        </Card>
+        <Card style={{ textAlign: "center", padding: 48, color: "var(--ml-text-light)" }}>Nog geen bestellingen.</Card>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {[...bestellingen].reverse().map(b => {
-            const prod = PRODUCT_TYPES.find(p => p.id === b.product);
+            const prod = producten.find(p => p.id === b.product_id);
             return (
               <Card key={b.id} style={{ padding: 24 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
@@ -618,25 +611,26 @@ function AdminBestellingen({ bestellingen, onStatusUpdate }) {
                     <div style={{
                       width: 52, height: 52, borderRadius: 10, background: "var(--ml-surface-alt)",
                       display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24,
-                    }}>{prod?.icon}</div>
+                    }}>{prod?.icon || "▦"}</div>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 15 }}>{prod?.label} — {b.kleur}</div>
+                      <div style={{ fontWeight: 600, fontSize: 15 }}>{prod?.naam} — {b.kleur}</div>
                       <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 4 }}>
                         {b.breedte} × {b.hoogte} cm · {b.montage} · Aantal: {b.aantal}
                       </div>
+                      <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 4 }}>
+                        Klant: {b.profielen?.naam || "—"} ({b.profielen?.email || "—"})
+                      </div>
                       {b.opmerking && (
                         <div style={{
-                          marginTop: 8, fontSize: 12, color: "var(--ml-text-light)",
-                          fontStyle: "italic", padding: "6px 10px",
-                          background: "var(--ml-surface-alt)", borderRadius: 6,
+                          marginTop: 8, fontSize: 12, color: "var(--ml-text-light)", fontStyle: "italic",
+                          padding: "6px 10px", background: "var(--ml-surface-alt)", borderRadius: 6,
                         }}>💬 {b.opmerking}</div>
                       )}
                     </div>
                   </div>
-
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>
-                      #{b.id} · {fmtDate(b.datum)}
+                      {b.order_nr} · {fmtDate(b.created_at)}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       {["nieuw", "verwerkt", "gereed", "geannuleerd"].map(s => (
@@ -664,90 +658,217 @@ function AdminBestellingen({ bestellingen, onStatusUpdate }) {
 }
 
 // ── ADMIN: KLANTEN ─────────────────────────────────────────
-function AdminKlanten() {
-  const klanten = [
-    { naam: "Jan de Vries", email: "klant@demo.nl", bestellingen: 3, laatst: "2026-04-10" },
-    { naam: "Petra Jansen", email: "petra@voorbeeld.nl", bestellingen: 7, laatst: "2026-04-12" },
-    { naam: "Mark Visser", email: "mark@voorbeeld.nl", bestellingen: 1, laatst: "2026-03-28" },
-  ];
-
+function AdminKlanten({ klanten }) {
   return (
     <div style={{ padding: 40 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>
-        Overzicht van geregistreerde klanten.
-      </p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Geregistreerde gebruikers.</p>
       <Card>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>
-              {["Klant", "E-mail", "Bestellingen", "Laatst Actief"].map(h => (
-                <th key={h} style={{
-                  textAlign: "left", padding: "12px 14px", color: "var(--ml-text-light)",
-                  fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1,
-                }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {klanten.map(k => (
-              <tr key={k.email} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}>
-                <td style={{ padding: "14px", fontWeight: 600 }}>{k.naam}</td>
-                <td style={{ padding: "14px", color: "var(--ml-text-light)" }}>{k.email}</td>
-                <td style={{ padding: "14px" }}>{k.bestellingen}</td>
-                <td style={{ padding: "14px", color: "var(--ml-text-light)" }}>{fmtDate(k.laatst)}</td>
+        {klanten.length === 0 ? (
+          <p style={{ color: "var(--ml-text-light)" }}>Nog geen klanten.</p>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>
+                {["Naam", "E-mail", "Rol", "Geregistreerd"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "12px 14px", color: "var(--ml-text-light)",
+                    fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {klanten.map(k => (
+                <tr key={k.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}>
+                  <td style={{ padding: "14px", fontWeight: 600 }}>{k.naam}</td>
+                  <td style={{ padding: "14px", color: "var(--ml-text-light)" }}>{k.email}</td>
+                  <td style={{ padding: "14px" }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge></td>
+                  <td style={{ padding: "14px", color: "var(--ml-text-light)" }}>{fmtDate(k.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
+    </div>
+  );
+}
+
+// ── ADMIN: PRODUCTEN ───────────────────────────────────────
+function AdminProducten({ producten, onRefresh }) {
+  const [editing, setEditing] = useState(null);
+  const [naam, setNaam] = useState("");
+  const [icon, setIcon] = useState("");
+  const [kleuren, setKleuren] = useState("");
+
+  const startEdit = (p) => {
+    setEditing(p.id);
+    setNaam(p.naam);
+    setIcon(p.icon);
+    setKleuren(p.kleuren.join(", "));
+  };
+
+  const saveEdit = async () => {
+    await supabase.from("producten").update({
+      naam, icon, kleuren: kleuren.split(",").map(k => k.trim()).filter(Boolean),
+    }).eq("id", editing);
+    setEditing(null);
+    onRefresh();
+  };
+
+  const toggleActief = async (p) => {
+    await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id);
+    onRefresh();
+  };
+
+  return (
+    <div style={{ padding: 40 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod.</p>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {producten.map(p => (
+          <Card key={p.id} style={{ padding: 20 }}>
+            {editing === p.id ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 80px", gap: 12 }}>
+                  <Input label="Productnaam" value={naam} onChange={setNaam} />
+                  <Input label="Icoon" value={icon} onChange={setIcon} />
+                </div>
+                <Input label="Kleuren (kommagescheiden)" value={kleuren} onChange={setKleuren} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small onClick={saveEdit}>Opslaan</Btn>
+                  <Btn small variant="ghost" onClick={() => setEditing(null)}>Annuleren</Btn>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
+                    opacity: p.actief ? 1 : 0.4,
+                  }}>{p.icon}</div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div>
+                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>
+                      {p.kleuren.join(" · ")}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn>
+                  <Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>
+                    {p.actief ? "Deactiveer" : "Activeer"}
+                  </Btn>
+                </div>
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
 
 // ── MAIN APP ───────────────────────────────────────────────
 export default function MultiluxApp() {
-  const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
+  const [profiel, setProfiel] = useState(null);
   const [pagina, setPagina] = useState("");
-  const [bestellingen, setBestellingen] = useState([
-    { id: "A1B2C3D4", product: "rolgordijn", kleur: "Antraciet", breedte: 120, hoogte: 160, montage: "Plafond", aantal: 2, opmerking: "", datum: "2026-04-10T10:30:00Z", status: "verwerkt" },
-    { id: "E5F6G7H8", product: "plisse", kleur: "Wit", breedte: 90, hoogte: 140, montage: "In de dag", aantal: 1, opmerking: "Graag extra snoer", datum: "2026-04-12T14:15:00Z", status: "nieuw" },
-    { id: "I9J0K1L2", product: "jaloezie", kleur: "Hout Naturel", breedte: 150, hoogte: 180, montage: "Muur", aantal: 3, opmerking: "", datum: "2026-04-08T09:00:00Z", status: "gereed" },
-  ]);
+  const [producten, setProducten] = useState([]);
+  const [bestellingen, setBestellingen] = useState([]);
+  const [klanten, setKlanten] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const onLogin = (u) => {
-    setUser(u);
-    setPagina(u.rol === "admin" ? "dashboard" : "bestellen");
+  // Auth listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) loadProfiel(session.user.id);
+      else setLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) loadProfiel(session.user.id);
+      else { setProfiel(null); setLoading(false); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadProfiel = async (userId) => {
+    const { data } = await supabase.from("profielen").select("*").eq("id", userId).single();
+    setProfiel(data);
+    setPagina(data?.rol === "admin" ? "dashboard" : "bestellen");
+    await loadProducten();
+    await loadBestellingen(data);
+    if (data?.rol === "admin") await loadKlanten();
+    setLoading(false);
   };
 
-  const onBestel = (b) => setBestellingen(prev => [...prev, b]);
-
-  const onStatusUpdate = (id, status) => {
-    setBestellingen(prev => prev.map(b => b.id === id ? { ...b, status } : b));
+  const loadProducten = async () => {
+    const { data } = await supabase.from("producten").select("*").order("volgorde");
+    setProducten(data || []);
   };
 
-  if (!user) {
+  const loadBestellingen = async (prof) => {
+    let query = supabase.from("bestellingen").select("*, profielen(naam, email)").order("created_at");
+    if (prof?.rol !== "admin") query = query.eq("klant_id", prof.id);
+    const { data } = await query;
+    setBestellingen(data || []);
+  };
+
+  const loadKlanten = async () => {
+    const { data } = await supabase.from("profielen").select("*").order("created_at");
+    setKlanten(data || []);
+  };
+
+  const onStatusUpdate = async (id, status) => {
+    await supabase.from("bestellingen").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    await loadBestellingen(profiel);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setProfiel(null);
+    setSession(null);
+  };
+
+  if (loading) {
     return (
       <>
         <style>{fonts}</style>
-        <div style={vars}><LoginPage onLogin={onLogin} /></div>
+        <div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}>
+          <Loader />
+        </div>
+      </>
+    );
+  }
+
+  if (!session) {
+    return (
+      <>
+        <style>{fonts}</style>
+        <div style={vars}>
+          <LoginPage onLogin={() => {}} />
+        </div>
       </>
     );
   }
 
   const renderPage = () => {
-    if (user.rol === "admin") {
+    if (profiel?.rol === "admin") {
       switch (pagina) {
-        case "dashboard": return <AdminDashboard bestellingen={bestellingen} />;
-        case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} onStatusUpdate={onStatusUpdate} />;
-        case "klanten": return <AdminKlanten />;
-        default: return <AdminDashboard bestellingen={bestellingen} />;
+        case "dashboard": return <AdminDashboard bestellingen={bestellingen} producten={producten} />;
+        case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} producten={producten} onStatusUpdate={onStatusUpdate} />;
+        case "klanten": return <AdminKlanten klanten={klanten} />;
+        case "producten": return <AdminProducten producten={producten} onRefresh={loadProducten} />;
+        default: return <AdminDashboard bestellingen={bestellingen} producten={producten} />;
       }
     } else {
       switch (pagina) {
-        case "bestellen": return <BestelForm onBestel={onBestel} />;
-        case "mijn-bestellingen": return <MijnBestellingen bestellingen={bestellingen} />;
-        default: return <BestelForm onBestel={onBestel} />;
+        case "bestellen": return <BestelForm profiel={profiel} producten={producten} onBesteld={() => loadBestellingen(profiel)} />;
+        case "mijn-bestellingen": return <MijnBestellingen bestellingen={bestellingen} producten={producten} />;
+        default: return <BestelForm profiel={profiel} producten={producten} onBesteld={() => loadBestellingen(profiel)} />;
       }
     }
   };
@@ -756,10 +877,8 @@ export default function MultiluxApp() {
     <>
       <style>{fonts}</style>
       <div style={{ ...vars, display: "flex", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}>
-        <Sidebar user={user} actief={pagina} onNav={setPagina} onLogout={() => setUser(null)} />
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          {renderPage()}
-        </div>
+        <Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} />
+        <div style={{ flex: 1, overflowY: "auto" }}>{renderPage()}</div>
       </div>
     </>
   );
