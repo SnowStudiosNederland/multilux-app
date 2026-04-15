@@ -377,13 +377,81 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
   );
 }
 
-function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen }) {
+function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [formNaam, setFormNaam] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formWw, setFormWw] = useState("");
+  const [formRol, setFormRol] = useState("klant");
+  const [formLoading, setFormLoading] = useState(false);
+  const [formMsg, setFormMsg] = useState("");
+  const [formErr, setFormErr] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [editNaam, setEditNaam] = useState("");
+  const [editRol, setEditRol] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+
   const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin");
   const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin");
+
+  const handleCreateAccount = async () => {
+    setFormErr(""); setFormMsg("");
+    if (!formNaam.trim() || !formEmail.trim() || !formWw.trim()) { setFormErr("Vul alle velden in"); return; }
+    if (formWw.length < 6) { setFormErr("Wachtwoord moet minimaal 6 tekens zijn"); return; }
+    setFormLoading(true);
+    const { createClient } = await import("@supabase/supabase-js");
+    const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+    const { error } = await tempClient.auth.signUp({ email: formEmail, password: formWw, options: { data: { naam: formNaam.trim(), rol: formRol } } });
+    setFormLoading(false);
+    if (error) { setFormErr(error.message); return; }
+    setFormMsg(`Account voor ${formNaam} aangemaakt!`);
+    setFormNaam(""); setFormEmail(""); setFormWw(""); setFormRol("klant");
+    setTimeout(() => { setFormMsg(""); setShowForm(false); }, 2000);
+    onRefresh();
+  };
+
+  const handleEdit = (k) => { setEditing(k.id); setEditNaam(k.naam); setEditRol(k.rol); };
+
+  const handleSaveEdit = async () => {
+    await supabase.from("profielen").update({ naam: editNaam, rol: editRol }).eq("id", editing);
+    setEditing(null);
+    onRefresh();
+  };
+
+  const handleResetPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    if (error) { setResetMsg("Fout: " + error.message); }
+    else { setResetMsg(`Reset-link verstuurd naar ${email}`); }
+    setTimeout(() => setResetMsg(""), 4000);
+  };
+
   return (
     <div style={{ padding: 40 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer gebruikersaccounts en goedkeuringen.</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
+          <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer gebruikersaccounts en goedkeuringen.</p>
+        </div>
+        <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Account aanmaken"}</Btn>
+      </div>
+
+      {resetMsg && (<Card style={{ marginBottom: 16, padding: "12px 20px", border: "1.5px solid var(--ml-success)44" }}><div style={{ fontSize: 13, color: "var(--ml-success)", fontWeight: 500 }}>✓ {resetMsg}</div></Card>)}
+
+      {showForm && (
+        <Card style={{ marginBottom: 28, border: "1.5px solid var(--ml-primary)22" }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>Nieuw account aanmaken</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <Input label="Naam" value={formNaam} onChange={setFormNaam} placeholder="Volledige naam" />
+            <Input label="E-mailadres" type="email" value={formEmail} onChange={setFormEmail} placeholder="email@voorbeeld.nl" />
+            <Input label="Wachtwoord" type="password" value={formWw} onChange={setFormWw} placeholder="Min. 6 tekens" />
+            <Input label="Rol" value={formRol} onChange={setFormRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
+          </div>
+          {formErr && (<div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "var(--ml-error)10", color: "var(--ml-error)", fontSize: 13 }}>⚠ {formErr}</div>)}
+          {formMsg && (<div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 13 }}>✓ {formMsg}</div>)}
+          <Btn onClick={handleCreateAccount} disabled={formLoading} small>{formLoading ? "Bezig..." : "Account aanmaken"}</Btn>
+        </Card>
+      )}
+
       {wachtend.length > 0 && (<>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-warning)" }}>⏳ Wachtend op goedkeuring ({wachtend.length})</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 36 }}>
@@ -404,17 +472,38 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen }) {
           ))}
         </div>
       </>)}
+
       <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Actieve accounts ({goedgekeurd.length})</h3>
-      <Card>
-        {goedgekeurd.length === 0 ? (<p style={{ color: "var(--ml-text-light)" }}>Nog geen actieve klanten.</p>) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>{["Naam", "E-mail", "Rol", "Geregistreerd"].map(h => (<th key={h} style={{ textAlign: "left", padding: "12px 14px", color: "var(--ml-text-light)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>))}</tr></thead>
-            <tbody>
-              {goedgekeurd.map(k => (<tr key={k.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}><td style={{ padding: "14px", fontWeight: 600 }}>{k.naam}</td><td style={{ padding: "14px", color: "var(--ml-text-light)" }}>{k.email}</td><td style={{ padding: "14px" }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge></td><td style={{ padding: "14px", color: "var(--ml-text-light)" }}>{fmtDate(k.created_at)}</td></tr>))}
-            </tbody>
-          </table>
-        )}
-      </Card>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {goedgekeurd.map(k => (
+          <Card key={k.id} style={{ padding: 20 }}>
+            {editing === k.id ? (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <Input label="Naam" value={editNaam} onChange={setEditNaam} />
+                  <Input label="Rol" value={editRol} onChange={setEditRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small onClick={handleSaveEdit}>Opslaan</Btn>
+                  <Btn small variant="ghost" onClick={() => setEditing(null)}>Annuleren</Btn>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}</div>
+                  <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}</div>
+                  <div style={{ marginTop: 6 }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge></div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small variant="outline" onClick={() => handleEdit(k)}>Bewerken</Btn>
+                  <Btn small variant="ghost" onClick={() => handleResetPassword(k.email)}>Wachtwoord reset</Btn>
+                </div>
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
@@ -502,7 +591,7 @@ export default function MultiluxApp() {
       switch (pagina) {
         case "dashboard": return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
         case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} producten={producten} onStatusUpdate={onStatusUpdate} />;
-        case "klanten": return <AdminKlanten klanten={klanten} onGoedkeuren={onGoedkeuren} onAfwijzen={onAfwijzen} />;
+        case "klanten": return <AdminKlanten klanten={klanten} onGoedkeuren={onGoedkeuren} onAfwijzen={onAfwijzen} onRefresh={loadKlanten} />;
         case "producten": return <AdminProducten producten={producten} onRefresh={loadProducten} />;
         default: return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
       }
