@@ -203,10 +203,11 @@ function BestelForm({ profiel, producten, onBesteld }) {
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>1. Kies uw product</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {producten.filter(p => p.actief).map(p => (
-            <button key={p.id} onClick={() => { setProductId(p.id); setKleur(""); }} style={{ padding: "20px 16px", border: `2px solid ${productId === p.id ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 10, background: productId === p.id ? "var(--ml-primary)08" : "#fff", cursor: "pointer", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily }}>
+          {producten.map(p => (
+            <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); } }} style={{ padding: "20px 16px", border: `2px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 10, background: productId === p.id && p.actief ? "var(--ml-primary)08" : p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.6, position: "relative" }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{p.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: productId === p.id ? 600 : 400, color: productId === p.id ? "var(--ml-primary)" : "var(--ml-text)" }}>{p.naam}</div>
+              <div style={{ fontSize: 13, fontWeight: productId === p.id && p.actief ? 600 : 400, color: productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-text)" }}>{p.naam}</div>
+              {!p.actief && <div style={{ fontSize: 11, color: "var(--ml-error)", fontWeight: 600, marginTop: 6 }}>Tijdelijk niet leverbaar</div>}
             </button>
           ))}
         </div>
