@@ -123,7 +123,7 @@ function LoginPage({ onLogin }) {
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(196,149,106,0.08)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
           <div style={{ fontSize: 56, fontFamily: "'Playfair Display', serif", fontWeight: 700, color: "#fff", letterSpacing: -1 }}>Multi<span style={{ color: "var(--ml-accent)" }}>lux</span></div>
-          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: 4, textTransform: "uppercase", marginTop: 12 }}>Binnenzonwering</div>
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: 4, textTransform: "uppercase", marginTop: 12 }}>Klantenportaal</div>
           <div style={{ width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto", borderRadius: 1 }} />
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
         </div>
