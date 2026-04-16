@@ -154,7 +154,7 @@ function LoginPage({ onLogin }) {
         <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(153,146,64,0.06)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
-          <img src={ML_LOGO} alt="Multilux" style={{ width: 220, marginBottom: 16 }} />
+          <img src={ML_LOGO} alt="Multilux" style={{ width: 220, marginBottom: 16, filter: "brightness(0) invert(1)" }} />
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: 4, textTransform: "uppercase", marginTop: 8 }}>Klantenportaal</div>
           <div style={{ width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto", borderRadius: 1 }} />
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
@@ -200,7 +200,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
       <>
         {/* Top bar */}
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "var(--ml-primary-dark)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
-          <img src={ML_LOGO} alt="Multilux" style={{ height: 20 }} />
+          <img src={ML_LOGO} alt="Multilux" style={{ height: 20, filter: "brightness(0) invert(1)" }} />
           <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
         </div>
         {/* Spacer */}
@@ -234,7 +234,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
   return (
     <div style={{ width: 250, minHeight: "100vh", background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
       <div style={{ padding: "0 28px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-        <img src={ML_LOGO} alt="Multilux" style={{ width: 140 }} />
+        <img src={ML_LOGO} alt="Multilux" style={{ width: 140, filter: "brightness(0) invert(1)" }} />
       </div>
       <nav style={{ flex: 1, padding: "24px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
         {items.map(it => (
