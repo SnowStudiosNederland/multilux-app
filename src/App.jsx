@@ -3,6 +3,35 @@ import { supabase } from "./supabase";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;500;600;700&display=swap');`;
 
+const responsiveCSS = `
+@media (max-width: 768px) {
+  .ml-login { flex-direction: column !important; }
+  .ml-login-left { display: none !important; }
+  .ml-login-right { width: 100% !important; padding: 32px 24px !important; }
+  .ml-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .ml-product-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .ml-form-grid2 { grid-template-columns: 1fr !important; }
+  .ml-form-grid3 { grid-template-columns: 1fr 1fr !important; }
+  .ml-page { padding: 20px !important; }
+  .ml-header-row { flex-direction: column !important; gap: 12px !important; align-items: stretch !important; }
+  .ml-header-btns { justify-content: flex-start !important; }
+  .ml-order-card-row { flex-direction: column !important; }
+  .ml-order-card-right { align-items: flex-start !important; }
+  .ml-status-btns { flex-wrap: wrap !important; }
+  .ml-search-input { width: 100% !important; }
+  .ml-table-wrap { overflow-x: auto; }
+  .ml-wacht-card { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+  .ml-klant-card { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+  .ml-klant-btns { align-self: flex-start !important; }
+}
+`;
+
+function useIsMobile() {
+  const [m, setM] = useState(typeof window !== "undefined" && window.innerWidth <= 768);
+  useEffect(() => { const h = () => setM(window.innerWidth <= 768); window.addEventListener("resize", h); return () => window.removeEventListener("resize", h); }, []);
+  return m;
+}
+
 const vars = {
   "--ml-bg": "#F7F5F0", "--ml-surface": "#FFFFFF", "--ml-surface-alt": "#EDE9E1",
   "--ml-primary": "#2D4A3E", "--ml-primary-light": "#3D6454", "--ml-primary-dark": "#1E332B",
@@ -117,8 +146,8 @@ function LoginPage({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "var(--ml-primary-dark)", fontFamily: vars.fontFamily }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #1E332B 0%, #2D4A3E 50%, #3D6454 100%)" }}>
+    <div className="ml-login" style={{ minHeight: "100vh", display: "flex", background: "var(--ml-primary-dark)", fontFamily: vars.fontFamily }}>
+      <div className="ml-login-left" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #1E332B 0%, #2D4A3E 50%, #3D6454 100%)" }}>
         <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)" }} />
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(196,149,106,0.08)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
@@ -128,14 +157,14 @@ function LoginPage({ onLogin }) {
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
         </div>
       </div>
-      <div style={{ width: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: 60, background: "var(--ml-bg)", opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s", overflowY: "auto" }}>
+      <div className="ml-login-right" style={{ width: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: 60, background: "var(--ml-bg)", opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s", overflowY: "auto" }}>
         <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>{mode === "login" ? "Welkom terug" : mode === "register" ? "Account aanmaken" : "Wachtwoord vergeten"}</h2>
         <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 36px" }}>{mode === "login" ? "Log in op uw Multilux account" : mode === "register" ? "Registreer als nieuwe klant" : "Voer uw e-mailadres in om een reset-link te ontvangen"}</p>
         {success && (<div style={{ marginBottom: 20, padding: "10px 16px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 13, fontWeight: 500 }}>✓ {success}</div>)}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {mode === "register" && (<>
             <Input label="Naam *" value={naam} onChange={setNaam} placeholder="Uw volledige naam" />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Input label="Bedrijfsnaam (optioneel)" value={bedrijf} onChange={setBedrijf} placeholder="Uw bedrijf" />
               <Input label="Telefoonnummer (optioneel)" value={telefoon} onChange={setTelefoon} placeholder="+31 6 12345678" />
             </div>
@@ -154,11 +183,50 @@ function LoginPage({ onLogin }) {
   );
 }
 
-function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend }) {
+function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile }) {
+  const [open, setOpen] = useState(false);
   const isAdmin = profiel?.rol === "admin";
   const items = isAdmin
     ? [{ id: "dashboard", label: "Dashboard", icon: "◫" }, { id: "bestellingen", label: "Bestellingen", icon: "☰" }, { id: "klanten", label: "Klanten", icon: "◉", badge: aantalWachtend }, { id: "producten", label: "Producten", icon: "▦" }]
     : [{ id: "bestellen", label: "Nieuwe Bestelling", icon: "＋" }, { id: "mijn-bestellingen", label: "Mijn Bestellingen", icon: "☰" }];
+
+  const handleNav = (id) => { onNav(id); if (isMobile) setOpen(false); };
+
+  if (isMobile) {
+    return (
+      <>
+        {/* Top bar */}
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "var(--ml-primary-dark)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
+          <div style={{ fontSize: 22, fontFamily: "'Playfair Display', serif", fontWeight: 700, color: "#fff" }}>Multi<span style={{ color: "var(--ml-accent)" }}>lux</span></div>
+          <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
+        </div>
+        {/* Spacer */}
+        <div style={{ height: 56 }} />
+        {/* Slide-out menu */}
+        {open && (
+          <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 0, zIndex: 999 }}>
+            <div onClick={() => setOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)" }} />
+            <div style={{ position: "relative", width: 260, height: "100%", background: "var(--ml-primary-dark)", padding: "16px 12px", display: "flex", flexDirection: "column", fontFamily: vars.fontFamily }}>
+              <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                {items.map(it => (
+                  <button key={it.id} onClick={() => handleNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "rgba(255,255,255,0.1)" : "transparent", color: actief === it.id ? "#fff" : "rgba(255,255,255,0.55)", fontSize: 15, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, textAlign: "left" }}>
+                    <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{it.icon}</span>
+                    {it.label}
+                    {it.badge > 0 && (<span style={{ marginLeft: "auto", background: "var(--ml-error)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>{it.badge}</span>)}
+                  </button>
+                ))}
+              </nav>
+              <div style={{ padding: "16px 8px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>{profiel?.naam}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2, marginBottom: 8 }}>{profiel?.email}</div>
+                <Btn variant="ghost" small onClick={onLogout} style={{ color: "rgba(255,255,255,0.4)", padding: "6px 0", fontSize: 12 }}>Uitloggen</Btn>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={{ width: 250, minHeight: "100vh", background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
@@ -260,11 +328,11 @@ function BestelForm({ profiel, producten, onBesteld }) {
   };
 
   if (succes) {
-    return (<div style={{ padding: 40 }}><Card style={{ textAlign: "center", padding: "60px 40px" }}><div style={{ fontSize: 52, marginBottom: 16 }}>✓</div><h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-primary)", margin: "0 0 8px" }}>Bestelling geplaatst!</h2><p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Uw bestelling wordt zo snel mogelijk verwerkt.</p></Card></div>);
+    return (<div className="ml-page" style={{ padding: 40 }}><Card style={{ textAlign: "center", padding: "60px 40px" }}><div style={{ fontSize: 52, marginBottom: 16 }}>✓</div><h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-primary)", margin: "0 0 8px" }}>Bestelling geplaatst!</h2><p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Uw bestelling wordt zo snel mogelijk verwerkt.</p></Card></div>);
   }
 
   return (
-    <div style={{ padding: 40, maxWidth: 900 }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Nieuwe Bestelling</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 32px" }}>Voeg één of meerdere producten toe aan uw bestelling.</p>
 
@@ -292,7 +360,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
       {/* Product selectie */}
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>1. Kies uw product</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        <div className="ml-product-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           {producten.map(p => {
             const img = PRODUCT_IMAGES[p.naam];
             return (
@@ -314,7 +382,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
       {/* Specificaties */}
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>2. Specificaties</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? gekozenProduct.kleuren : []} />
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
         </div>
@@ -354,7 +422,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
             {[0,1,2,3,4,5,6,7].map(i => (<line key={i} x1="36" y1={18 + i * 14} x2="164" y2={18 + i * 14} stroke="var(--ml-primary)" strokeWidth="0.5" opacity="0.25" />))}
           </svg>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+        <div className="ml-form-grid3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
           <Input label="Breedte" type="number" value={breedte} onChange={setBreedte} placeholder="bijv. 120" suffix="cm" error={errors.breedte} />
           <Input label="Hoogte" type="number" value={hoogte} onChange={setHoogte} placeholder="bijv. 160" suffix="cm" error={errors.hoogte} />
           <Input label="Aantal" type="number" value={aantal} onChange={setAantal} placeholder="1" error={errors.aantal} />
@@ -384,9 +452,9 @@ function BestelForm({ profiel, producten, onBesteld }) {
         <textarea value={opmerking} onChange={e => setOpmerking(e.target.value)} placeholder="Bijv. speciale montagewensen, draairichting, etc." rows={3} style={{ width: "100%", boxSizing: "border-box", fontFamily: vars.fontFamily, fontSize: 14, padding: "12px 14px", border: "1.5px solid var(--ml-border)", borderRadius: 8, resize: "vertical", outline: "none" }} />
       </Card>
 
-      <div style={{ display: "flex", gap: 12 }}>
-        <Btn variant="outline" onClick={voegToe} style={{ padding: "14px 32px", fontSize: 15 }}>+ Nog een maat toevoegen</Btn>
-        <Btn onClick={handleSubmit} disabled={loading} style={{ padding: "14px 48px", fontSize: 15 }}>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <Btn variant="outline" onClick={voegToe} style={{ padding: "14px 24px", fontSize: 14 }}>+ Nog een maat toevoegen</Btn>
+        <Btn onClick={handleSubmit} disabled={loading} style={{ padding: "14px 32px", fontSize: 14 }}>
           {loading ? "Bezig met plaatsen..." : `Bestelling plaatsen${regels.length > 0 ? ` (${regels.length} items)` : ""} →`}
         </Btn>
       </div>
@@ -402,7 +470,7 @@ function MijnBestellingen({ bestellingen, producten, loading }) {
   const orderList = Object.entries(orders).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
 
   return (
-    <div style={{ padding: 40, maxWidth: 900 }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Mijn Bestellingen</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van al uw geplaatste bestellingen.</p>
       {orderList.length === 0 ? (
@@ -450,7 +518,7 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
     { label: "Gereed", waarde: stats.gereed, kleur: "var(--ml-success)", icon: "✓" },
   ];
   return (
-    <div style={{ padding: 40 }}>
+    <div className="ml-page" style={{ padding: 40 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Dashboard</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van alle bestellingen</p>
       {aantalWachtend > 0 && (
@@ -464,7 +532,7 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
           </div>
         </Card>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
+      <div className="ml-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
         {statCards.map(s => (
           <Card key={s.label} style={{ padding: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -480,7 +548,7 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
       <Card>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Recente Bestellingen</h3>
         {bestellingen.length === 0 ? (<p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Nog geen bestellingen.</p>) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 500 }}>
             <thead><tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>{["Order", "Product", "Maten", "Status", "Datum"].map(h => (<th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "var(--ml-text-light)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>))}</tr></thead>
             <tbody>
               {bestellingen.slice(-8).reverse().map(b => {
@@ -505,15 +573,15 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
   }) : bestellingen;
 
   return (
-    <div style={{ padding: 40 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+    <div className="ml-page" style={{ padding: 40 }}>
+      <div className="ml-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Bestellingen</h1>
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer en verwerk alle bestellingen.</p>
         </div>
         <div style={{ position: "relative" }}>
           <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek op klant, product, ordernr..."
-            style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: 280 }} />
+            style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: "100%", maxWidth: 280 }} />
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--ml-text-light)" }}>⌕</span>
         </div>
       </div>
@@ -535,7 +603,7 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>{b.order_nr} · {fmtDate(b.created_at)}</div>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div className="ml-status-btns" style={{ display: "flex", gap: 6 }}>
                       {["nieuw", "verwerkt", "gereed", "geannuleerd"].map(s => (
                         <button key={s} onClick={() => onStatusUpdate(b.id, s)} style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontFamily: vars.fontFamily, background: b.status === s ? statusKleur[s] + "18" : "transparent", color: b.status === s ? statusKleur[s] : "var(--ml-text-light)", border: b.status === s ? `1.5px solid ${statusKleur[s]}44` : "1.5px solid var(--ml-border)", transition: "all .15s" }}>{s}</button>
                       ))}
@@ -674,8 +742,8 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+    <div className="ml-page" style={{ padding: 40 }}>
+      <div className="ml-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer gebruikersaccounts en goedkeuringen.</p>
@@ -696,7 +764,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
       {showForm && (
         <Card style={{ marginBottom: 28, border: "1.5px solid var(--ml-primary)22" }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>Nieuw account aanmaken</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <Input label="Naam *" value={formNaam} onChange={setFormNaam} placeholder="Volledige naam" />
             <Input label="E-mailadres *" type="email" value={formEmail} onChange={setFormEmail} placeholder="email@voorbeeld.nl" />
             <Input label="Wachtwoord *" type="password" value={formWw} onChange={setFormWw} placeholder="Min. 6 tekens" />
@@ -747,7 +815,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
           <Card key={k.id} style={{ padding: 20 }}>
             {editing === k.id ? (
               <div>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
+                <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
                   <Input label="Naam" value={editNaam} onChange={setEditNaam} />
                   <Input label="Rol" value={editRol} onChange={setEditRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
                   <Input label="Bedrijfsnaam" value={editBedrijf} onChange={setEditBedrijf} placeholder="Optioneel" />
@@ -798,7 +866,7 @@ function AdminProducten({ producten, onRefresh }) {
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
 
   return (
-    <div style={{ padding: 40 }}>
+    <div className="ml-page" style={{ padding: 40 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -835,6 +903,7 @@ export default function MultiluxApp() {
   const [klanten, setKlanten] = useState([]);
   const [loading, setLoading] = useState(true);
   const aantalWachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin").length;
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) loadProfiel(session.user.id); else setLoading(false); });
@@ -862,9 +931,9 @@ export default function MultiluxApp() {
   const onAfwijzen = async (id) => { await supabase.from("profielen").update({ goedgekeurd: false }).eq("id", id); await loadKlanten(); };
   const handleLogout = async () => { await supabase.auth.signOut(); setProfiel(null); setSession(null); };
 
-  if (loading) return (<><style>{fonts}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}><Loader /></div></>);
-  if (!session) return (<><style>{fonts}</style><div style={vars}><LoginPage onLogin={() => {}} /></div></>);
-  if (profiel && !profiel.goedgekeurd && profiel.rol !== "admin") return (<><style>{fonts}</style><div style={vars}><WachtScherm profiel={profiel} onLogout={handleLogout} /></div></>);
+  if (loading) return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}><Loader /></div></>);
+  if (!session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><LoginPage onLogin={() => {}} /></div></>);
+  if (profiel && !profiel.goedgekeurd && profiel.rol !== "admin") return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><WachtScherm profiel={profiel} onLogout={handleLogout} /></div></>);
 
   const renderPage = () => {
     if (profiel?.rol === "admin") {
@@ -884,5 +953,5 @@ export default function MultiluxApp() {
     }
   };
 
-  return (<><style>{fonts}</style><div style={{ ...vars, display: "flex", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}><Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} aantalWachtend={aantalWachtend} /><div style={{ flex: 1, overflowY: "auto" }}>{renderPage()}</div></div></>);
+  return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}><Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} aantalWachtend={aantalWachtend} isMobile={isMobile} /><div style={{ flex: 1, overflowY: "auto" }}>{renderPage()}</div></div></>);
 }
