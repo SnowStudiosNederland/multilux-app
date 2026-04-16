@@ -15,6 +15,15 @@ const vars = {
 
 const MONTAGETYPES = ["Plafond", "Muur", "In de dag", "Op de dag"];
 const statusKleur = { nieuw: "#E67E22", verwerkt: "#2980B9", gereed: "#27AE60", geannuleerd: "#C0392B" };
+
+const PRODUCT_IMAGES = {
+  "Rolgordijnen": "https://static.wixstatic.com/media/dee1d6_e8017bee90104210a818c8d0db5d3db8~mv2.jpg/v1/crop/x_0,y_210,w_3463,h_1992/fill/w_400,h_230,al_c,q_80,enc_avif,quality_auto/159.jpg",
+  "Aluminium Jaloezieën": "https://static.wixstatic.com/media/dee1d6_7f4f7aba3b294b7191300a93e172a361~mv2.jpg/v1/crop/x_0,y_1017,w_7087,h_4077/fill/w_400,h_230,al_c,q_80,enc_avif,quality_auto/69.jpg",
+  "Houten Jaloezieën": "https://static.wixstatic.com/media/dee1d6_6de4690afaa143e39844824a6a2dd441~mv2.jpg/v1/fill/w_400,h_300,al_c,q_80,enc_avif,quality_auto/143.jpg",
+  "Plissés": "https://static.wixstatic.com/media/dee1d6_5ad35d6eb3634c049f90d85b58f68913~mv2.jpg/v1/fill/w_400,h_267,al_c,q_80,enc_avif,quality_auto/96.jpg",
+  "Duo Plissés": "https://static.wixstatic.com/media/dee1d6_101a17ae879545d89c1117418f796ec4~mv2.jpg/v1/fill/w_400,h_267,al_c,q_80,enc_avif,quality_auto/100.jpg",
+  "Duo Rolgordijnen": "https://static.wixstatic.com/media/dee1d6_f4fb6da7927942adae845de171d7a63d~mv2.jpg/v1/crop/x_0,y_102,w_7423,h_4271/fill/w_400,h_230,al_c,q_80,enc_avif,quality_auto/85.jpg",
+};
 const fmtDate = (d) => new Date(d).toLocaleDateString("nl-NL", { day: "2-digit", month: "short", year: "numeric" });
 const genOrderNr = () => "ML-" + Math.random().toString(36).slice(2, 8).toUpperCase();
 
@@ -202,14 +211,21 @@ function BestelForm({ profiel, producten, onBesteld }) {
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 32px" }}>Vul de maten en specificaties van uw binnenzonwering in.</p>
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>1. Kies uw product</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {producten.map(p => (
-            <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); } }} style={{ padding: "20px 16px", border: `2px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 10, background: productId === p.id && p.actief ? "var(--ml-primary)08" : p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.6, position: "relative" }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{p.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: productId === p.id && p.actief ? 600 : 400, color: productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-text)" }}>{p.naam}</div>
-              {!p.actief && <div style={{ fontSize: 11, color: "var(--ml-error)", fontWeight: 600, marginTop: 6 }}>Tijdelijk niet leverbaar</div>}
-            </button>
-          ))}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+          {producten.map(p => {
+            const img = PRODUCT_IMAGES[p.naam];
+            return (
+              <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); } }} style={{ padding: 0, border: `2.5px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 12, background: p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.5, overflow: "hidden" }}>
+                {img && <div style={{ width: "100%", height: 120, overflow: "hidden", position: "relative" }}>
+                  <img src={img} alt={p.naam} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {!p.actief && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#fff", fontSize: 11, fontWeight: 700, background: "var(--ml-error)", padding: "4px 10px", borderRadius: 4 }}>Tijdelijk niet leverbaar</span></div>}
+                </div>}
+                <div style={{ padding: "12px 10px" }}>
+                  <div style={{ fontSize: 13, fontWeight: productId === p.id && p.actief ? 700 : 500, color: productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-text)" }}>{p.naam}</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
         {errors.product && <span style={{ fontSize: 12, color: "var(--ml-error)", marginTop: 8, display: "block" }}>{errors.product}</span>}
       </Card>
@@ -264,7 +280,7 @@ function MijnBestellingen({ bestellingen, producten, loading }) {
               <Card key={b.id} style={{ padding: 20 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 10, background: "var(--ml-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod?.icon || "▦"}</div>
+                    <div style={{ width: 48, height: 48, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod?.naam] ? <img src={PRODUCT_IMAGES[prod?.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod?.icon || "▦"}</div>}</div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 15, color: "var(--ml-text)" }}>{prod?.naam || "Product"} — {b.kleur}</div>
                       <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{b.breedte} × {b.hoogte} cm · {b.montage} · {b.aantal}×</div>
@@ -351,7 +367,7 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
               <Card key={b.id} style={{ padding: 24 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
                   <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-                    <div style={{ width: 52, height: 52, borderRadius: 10, background: "var(--ml-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{prod?.icon || "▦"}</div>
+                    <div style={{ width: 52, height: 52, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod?.naam] ? <img src={PRODUCT_IMAGES[prod?.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{prod?.icon || "▦"}</div>}</div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 15 }}>{prod?.naam} — {b.kleur}</div>
                       <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 4 }}>{b.breedte} × {b.hoogte} cm · {b.montage} · Aantal: {b.aantal}</div>
@@ -584,7 +600,7 @@ function AdminProducten({ producten, onRefresh }) {
             ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, opacity: p.actief ? 1 : 0.4 }}>{p.icon}</div>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", opacity: p.actief ? 1 : 0.4, flexShrink: 0 }}>{PRODUCT_IMAGES[p.naam] ? <img src={PRODUCT_IMAGES[p.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.icon}</div>}</div>
                   <div><div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div><div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{p.kleuren.join(" · ")}</div></div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
