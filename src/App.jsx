@@ -328,7 +328,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
   };
 
   if (succes) {
-    return (<div className="ml-page" style={{ padding: 40 }}><Card style={{ textAlign: "center", padding: "60px 40px" }}><div style={{ fontSize: 52, marginBottom: 16 }}>✓</div><h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-primary)", margin: "0 0 8px" }}>Bestelling geplaatst!</h2><p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Uw bestelling wordt zo snel mogelijk verwerkt.</p></Card></div>);
+    return (<div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}><Card style={{ textAlign: "center", padding: "60px 40px" }}><div style={{ fontSize: 52, marginBottom: 16 }}>✓</div><h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-primary)", margin: "0 0 8px" }}>Bestelling geplaatst!</h2><p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Uw bestelling wordt zo snel mogelijk verwerkt.</p></Card></div>);
   }
 
   return (
@@ -462,12 +462,62 @@ function BestelForm({ profiel, producten, onBesteld }) {
   );
 }
 
-function MijnBestellingen({ bestellingen, producten, loading }) {
+function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
   if (loading) return <Loader />;
-  // Groepeer op order_nr
   const orders = {};
   bestellingen.forEach(b => { if (!orders[b.order_nr]) orders[b.order_nr] = []; orders[b.order_nr].push(b); });
   const orderList = Object.entries(orders).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
+
+  const downloadPDF = async (orderNr, items) => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF();
+    // Header
+    doc.setFontSize(22); doc.setTextColor(45, 74, 62);
+    doc.text("Multilux", 20, 25);
+    doc.setFontSize(10); doc.setTextColor(107, 101, 96);
+    doc.text("Binnenzonwering op Maat", 20, 32);
+    doc.text("Simon Stevinweg 25  |  3241 MD Middelharnis", 20, 37);
+    doc.text("info@multilux-zonwering.nl  |  +31 (0) 187 47 88 33", 20, 42);
+    // Lijn
+    doc.setDrawColor(196, 149, 106); doc.setLineWidth(0.5); doc.line(20, 48, 190, 48);
+    // Order info
+    doc.setFontSize(14); doc.setTextColor(26, 26, 26);
+    doc.text("Orderbevestiging", 20, 58);
+    doc.setFontSize(10); doc.setTextColor(107, 101, 96);
+    doc.text(`Ordernummer: ${orderNr}`, 20, 66);
+    doc.text(`Datum: ${fmtDate(items[0].created_at)}`, 20, 72);
+    doc.text(`Status: ${items[0].status.toUpperCase()}`, 20, 78);
+    if (profiel) {
+      doc.text(`Klant: ${profiel.naam}`, 120, 66);
+      doc.text(`E-mail: ${profiel.email}`, 120, 72);
+      if (profiel.bedrijf) doc.text(`Bedrijf: ${profiel.bedrijf}`, 120, 78);
+    }
+    // Tabel
+    const tableData = items.map(b => {
+      const prod = producten.find(p => p.id === b.product_id);
+      return [prod?.naam || "", b.kleur, `${b.breedte} cm`, `${b.hoogte} cm`, b.montage, b.aantal];
+    });
+    autoTable(doc, {
+      startY: 88,
+      head: [["Product", "Kleur", "Breedte", "Hoogte", "Montage", "Aantal"]],
+      body: tableData,
+      theme: "grid",
+      headStyles: { fillColor: [45, 74, 62], textColor: 255, fontSize: 10 },
+      styles: { fontSize: 9, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [245, 243, 237] },
+    });
+    // Opmerking
+    const finalY = doc.lastAutoTable.finalY || 120;
+    if (items[0].opmerking) {
+      doc.setFontSize(9); doc.setTextColor(107, 101, 96);
+      doc.text(`Opmerking: ${items[0].opmerking}`, 20, finalY + 12);
+    }
+    // Footer
+    doc.setFontSize(8); doc.setTextColor(180, 180, 180);
+    doc.text("Dit document is gegenereerd via het Multilux Klantenportaal", 20, 285);
+    doc.save(`Multilux-Order-${orderNr}.pdf`);
+  };
 
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
@@ -479,9 +529,10 @@ function MijnBestellingen({ bestellingen, producten, loading }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {orderList.map(([orderNr, items]) => (
             <Card key={orderNr} style={{ padding: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 1 ? 16 : 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 1 ? 16 : 10 }}>
                 <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>{orderNr} · {fmtDate(items[0].created_at)}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Btn small variant="ghost" onClick={() => downloadPDF(orderNr, items)} style={{ fontSize: 12, padding: "4px 10px" }}>⬇ PDF</Btn>
                   {items.length > 1 && <span style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{items.length} items</span>}
                   <Badge color={statusKleur[items[0].status]}>{items[0].status}</Badge>
                 </div>
@@ -518,7 +569,7 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
     { label: "Gereed", waarde: stats.gereed, kleur: "var(--ml-success)", icon: "✓" },
   ];
   return (
-    <div className="ml-page" style={{ padding: 40 }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Dashboard</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van alle bestellingen</p>
       {aantalWachtend > 0 && (
@@ -572,17 +623,61 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
       .filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
   }) : bestellingen;
 
+  const handleExport = async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Bestellingen");
+    ws.mergeCells("A1:J2");
+    const titleCell = ws.getCell("A1");
+    titleCell.value = "Bestellingen Multilux";
+    titleCell.font = { name: "Aptos Narrow", size: 24, bold: true, color: { argb: "FFFFFFFF" } };
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF999240" } };
+    titleCell.alignment = { horizontal: "center", vertical: "middle" };
+    const headers = ["Ordernr:", "Klant:", "Product:", "Kleur:", "Breedte (cm):", "Hoogte (cm):", "Montage:", "Aantal:", "Status:", "Datum:"];
+    const headerRow = ws.getRow(3);
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { name: "Aptos Narrow", size: 11, bold: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9D2B0" } };
+      cell.border = { bottom: { style: "thin", color: { argb: "FF999240" } } };
+    });
+    [...bestellingen].reverse().forEach((b, i) => {
+      const prod = producten.find(p => p.id === b.product_id);
+      const row = ws.getRow(4 + i);
+      const vals = [b.order_nr, b.profielen?.naam || "", prod?.naam || "", b.kleur, b.breedte, b.hoogte, b.montage, b.aantal, b.status, new Date(b.created_at).toLocaleDateString("nl-NL")];
+      vals.forEach((v, j) => {
+        const cell = row.getCell(j + 1);
+        cell.value = v;
+        cell.font = { name: "Aptos Narrow", size: 11 };
+        if (i % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F3ED" } };
+      });
+    });
+    ws.columns = [{ width: 16 }, { width: 22 }, { width: 22 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 10 }, { width: 14 }, { width: 14 }];
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Multilux-Bestellingen-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="ml-page" style={{ padding: 40 }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <div className="ml-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Bestellingen</h1>
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer en verwerk alle bestellingen.</p>
         </div>
-        <div style={{ position: "relative" }}>
-          <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek op klant, product, ordernr..."
-            style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: "100%", maxWidth: 280 }} />
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--ml-text-light)" }}>⌕</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
+          <div style={{ position: "relative" }}>
+            <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek..."
+              style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: "100%", maxWidth: 220 }} />
+            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--ml-text-light)" }}>⌕</span>
+          </div>
         </div>
       </div>
       {gefilterd.length === 0 ? (<Card style={{ textAlign: "center", padding: 48, color: "var(--ml-text-light)" }}>{zoek ? `Geen resultaten voor "${zoek}"` : "Nog geen bestellingen."}</Card>) : (
@@ -742,7 +837,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
   };
 
   return (
-    <div className="ml-page" style={{ padding: 40 }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <div className="ml-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
@@ -866,7 +961,7 @@ function AdminProducten({ producten, onRefresh }) {
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
 
   return (
-    <div className="ml-page" style={{ padding: 40 }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -947,7 +1042,7 @@ export default function MultiluxApp() {
     } else {
       switch (pagina) {
         case "bestellen": return <BestelForm profiel={profiel} producten={producten} onBesteld={() => loadBestellingen(profiel)} />;
-        case "mijn-bestellingen": return <MijnBestellingen bestellingen={bestellingen} producten={producten} />;
+        case "mijn-bestellingen": return <MijnBestellingen bestellingen={bestellingen} producten={producten} profiel={profiel} />;
         default: return <BestelForm profiel={profiel} producten={producten} onBesteld={() => loadBestellingen(profiel)} />;
       }
     }
