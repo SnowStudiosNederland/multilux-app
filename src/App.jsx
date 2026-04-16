@@ -480,7 +480,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
     const ws = wb.addWorksheet("Sheet1");
 
     // Titel rij (A1:H2 merged)
-    ws.mergeCells("A1:H2");
+    ws.mergeCells("A1:F2");
     const titleCell = ws.getCell("A1");
     titleCell.value = "Klantenbestand Multilux";
     titleCell.font = { name: "Aptos Narrow", size: 24, bold: true, color: { argb: "FFFFFFFF" } };
@@ -519,7 +519,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
     // Kolom breedtes
     ws.columns = [
-      { width: 25 }, { width: 30 }, { width: 20 }, { width: 25 }, { width: 20 }, { width: 12 }, { width: 10 }, { width: 10 },
+      { width: 25 }, { width: 30 }, { width: 20 }, { width: 25 }, { width: 20 }, { width: 12 },
     ];
 
     // Download
