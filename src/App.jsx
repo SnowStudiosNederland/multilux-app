@@ -390,6 +390,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
   const [editNaam, setEditNaam] = useState("");
   const [editRol, setEditRol] = useState("");
   const [resetMsg, setResetMsg] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin");
   const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin");
@@ -425,6 +426,33 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
     setTimeout(() => setResetMsg(""), 4000);
   };
 
+  const handleDelete = async (id) => {
+    await supabase.from("bestellingen").delete().eq("klant_id", id);
+    await supabase.from("profielen").delete().eq("id", id);
+    setDeleteConfirm(null);
+    onRefresh();
+  };
+
+  const handleExport = () => {
+    const BOM = "\uFEFF";
+    const header = ["Naam", "E-mail", "Rol", "Goedgekeurd", "Geregistreerd"];
+    const rows = klanten.map(k => [
+      k.naam,
+      k.email,
+      k.rol,
+      k.goedgekeurd ? "Ja" : "Nee",
+      new Date(k.created_at).toLocaleDateString("nl-NL"),
+    ]);
+    const csv = BOM + [header, ...rows].map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `multilux-klanten-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ padding: 40 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
@@ -432,7 +460,10 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer gebruikersaccounts en goedkeuringen.</p>
         </div>
-        <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Account aanmaken"}</Btn>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
+          <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Account aanmaken"}</Btn>
+        </div>
       </div>
 
       {resetMsg && (<Card style={{ marginBottom: 16, padding: "12px 20px", border: "1.5px solid var(--ml-success)44" }}><div style={{ fontSize: 13, color: "var(--ml-success)", fontWeight: 500 }}>✓ {resetMsg}</div></Card>)}
@@ -466,8 +497,18 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="success" onClick={() => onGoedkeuren(k.id)}>Goedkeuren</Btn>
                   <Btn small variant="danger" onClick={() => onAfwijzen(k.id)}>Afwijzen</Btn>
+                  <Btn small variant="ghost" onClick={() => setDeleteConfirm(k.id)} style={{ color: "var(--ml-error)" }}>✕</Btn>
                 </div>
               </div>
+              {deleteConfirm === k.id && (
+                <div style={{ marginTop: 12, padding: "12px 16px", background: "var(--ml-error)08", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "var(--ml-error)", fontWeight: 500 }}>Account en bestellingen definitief verwijderen?</span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn small variant="danger" onClick={() => handleDelete(k.id)}>Ja, verwijder</Btn>
+                    <Btn small variant="ghost" onClick={() => setDeleteConfirm(null)}>Annuleren</Btn>
+                  </div>
+                </div>
+              )}
             </Card>
           ))}
         </div>
@@ -498,6 +539,16 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="outline" onClick={() => handleEdit(k)}>Bewerken</Btn>
                   <Btn small variant="ghost" onClick={() => handleResetPassword(k.email)}>Wachtwoord reset</Btn>
+                  <Btn small variant="ghost" onClick={() => setDeleteConfirm(k.id)} style={{ color: "var(--ml-error)" }}>✕</Btn>
+                </div>
+              </div>
+            )}
+            {deleteConfirm === k.id && (
+              <div style={{ marginTop: 12, padding: "12px 16px", background: "var(--ml-error)08", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: "var(--ml-error)", fontWeight: 500 }}>Account en bestellingen definitief verwijderen?</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small variant="danger" onClick={() => handleDelete(k.id)}>Ja, verwijder</Btn>
+                  <Btn small variant="ghost" onClick={() => setDeleteConfirm(null)}>Annuleren</Btn>
                 </div>
               </div>
             )}
