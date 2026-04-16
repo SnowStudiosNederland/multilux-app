@@ -474,24 +474,61 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
     onRefresh();
   };
 
-  const handleExport = () => {
-    const BOM = "\uFEFF";
-    const header = ["Naam", "Bedrijf", "E-mail", "Telefoon", "Rol", "Goedgekeurd", "Geregistreerd"];
-    const rows = klanten.map(k => [
-      k.naam,
-      k.bedrijf || "",
-      k.email,
-      k.telefoon || "",
-      k.rol,
-      k.goedgekeurd ? "Ja" : "Nee",
-      new Date(k.created_at).toLocaleDateString("nl-NL"),
-    ]);
-    const csv = BOM + [header, ...rows].map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";")).join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const handleExport = async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Sheet1");
+
+    // Titel rij (A1:H2 merged)
+    ws.mergeCells("A1:H2");
+    const titleCell = ws.getCell("A1");
+    titleCell.value = "Klantenbestand Multilux";
+    titleCell.font = { name: "Aptos Narrow", size: 24, bold: true, color: { argb: "FFFFFFFF" } };
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF999240" } };
+    titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    // Header rij (rij 3)
+    const headers = ["Naam:", "E-mail:", "Telefoonnumer:", "Bedrijfsnaam:", "Datum Registratie:", "Rol:"];
+    const headerRow = ws.getRow(3);
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h;
+      cell.font = { name: "Aptos Narrow", size: 11, bold: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9D2B0" } };
+      cell.border = { bottom: { style: "thin", color: { argb: "FF999240" } } };
+    });
+
+    // Data rijen
+    klanten.forEach((k, i) => {
+      const row = ws.getRow(4 + i);
+      const vals = [
+        k.naam,
+        k.email,
+        k.telefoon || "",
+        k.bedrijf || "",
+        new Date(k.created_at).toLocaleDateString("nl-NL"),
+        k.rol,
+      ];
+      vals.forEach((v, j) => {
+        const cell = row.getCell(j + 1);
+        cell.value = v;
+        cell.font = { name: "Aptos Narrow", size: 11 };
+        if (i % 2 === 1) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5F3ED" } };
+      });
+    });
+
+    // Kolom breedtes
+    ws.columns = [
+      { width: 25 }, { width: 30 }, { width: 20 }, { width: 25 }, { width: 20 }, { width: 12 }, { width: 10 }, { width: 10 },
+    ];
+
+    // Download
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `multilux-klanten-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `Multilux-Klantenbestand-${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   };
