@@ -33,14 +33,17 @@ function useIsMobile() {
 }
 
 const vars = {
-  "--ml-bg": "#F7F5F0", "--ml-surface": "#FFFFFF", "--ml-surface-alt": "#EDE9E1",
-  "--ml-primary": "#2D4A3E", "--ml-primary-light": "#3D6454", "--ml-primary-dark": "#1E332B",
-  "--ml-accent": "#C4956A", "--ml-accent-light": "#D4AA82",
+  "--ml-bg": "#F5F4F0", "--ml-surface": "#FFFFFF", "--ml-surface-alt": "#ECEAE4",
+  "--ml-primary": "#1A1A1A", "--ml-primary-light": "#333333", "--ml-primary-dark": "#111111",
+  "--ml-accent": "#999240", "--ml-accent-light": "#B5AD5C",
   "--ml-text": "#1A1A1A", "--ml-text-light": "#6B6560", "--ml-border": "#D9D4CC",
   "--ml-error": "#C0392B", "--ml-success": "#27AE60", "--ml-warning": "#E67E22",
   "--ml-radius": "12px", "--ml-shadow": "0 2px 16px rgba(0,0,0,0.06)",
   "--ml-shadow-lg": "0 8px 32px rgba(0,0,0,0.10)", fontFamily: "'DM Sans', sans-serif",
 };
+
+const ML_LOGO = "https://static.wixstatic.com/media/d67b3e_0d151f569ab84b5f96565814d0d8f0fb~mv2.png/v1/fill/w_300,h_68,al_c,q_85,enc_avif,quality_auto/logo%20web%20rgb.png";
+const ML_LOGO_STAR = "https://static.wixstatic.com/media/d67b3e_5a5810fc1579421890e6ebb057d958ff~mv2.png/v1/fill/w_100,h_100,al_c,q_85,enc_avif,quality_auto/logo%20web%20ster.png";
 
 const MONTAGETYPES = ["Plafond", "Muur", "In de dag", "Op de dag"];
 const statusKleur = { nieuw: "#E67E22", verwerkt: "#2980B9", gereed: "#27AE60", geannuleerd: "#C0392B" };
@@ -147,12 +150,12 @@ function LoginPage({ onLogin }) {
 
   return (
     <div className="ml-login" style={{ minHeight: "100vh", display: "flex", background: "var(--ml-primary-dark)", fontFamily: vars.fontFamily }}>
-      <div className="ml-login-left" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #1E332B 0%, #2D4A3E 50%, #3D6454 100%)" }}>
-        <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.06)" }} />
-        <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(196,149,106,0.08)" }} />
+      <div className="ml-login-left" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)" }}>
+        <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(153,146,64,0.06)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
-          <div style={{ fontSize: 56, fontFamily: "'Playfair Display', serif", fontWeight: 700, color: "#fff", letterSpacing: -1 }}>Multi<span style={{ color: "var(--ml-accent)" }}>lux</span></div>
-          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", letterSpacing: 4, textTransform: "uppercase", marginTop: 12 }}>Klantenportaal</div>
+          <img src={ML_LOGO} alt="Multilux" style={{ width: 220, marginBottom: 16 }} />
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: 4, textTransform: "uppercase", marginTop: 8 }}>Klantenportaal</div>
           <div style={{ width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto", borderRadius: 1 }} />
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
         </div>
@@ -197,7 +200,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
       <>
         {/* Top bar */}
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "var(--ml-primary-dark)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
-          <div style={{ fontSize: 22, fontFamily: "'Playfair Display', serif", fontWeight: 700, color: "#fff" }}>Multi<span style={{ color: "var(--ml-accent)" }}>lux</span></div>
+          <img src={ML_LOGO} alt="Multilux" style={{ height: 20 }} />
           <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
         </div>
         {/* Spacer */}
@@ -231,7 +234,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
   return (
     <div style={{ width: 250, minHeight: "100vh", background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
       <div style={{ padding: "0 28px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-        <div style={{ fontSize: 28, fontFamily: "'Playfair Display', serif", fontWeight: 700, color: "#fff" }}>Multi<span style={{ color: "var(--ml-accent)" }}>lux</span></div>
+        <img src={ML_LOGO} alt="Multilux" style={{ width: 140 }} />
       </div>
       <nav style={{ flex: 1, padding: "24px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
         {items.map(it => (
@@ -473,14 +476,14 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
     const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
     // Header
-    doc.setFontSize(22); doc.setTextColor(45, 74, 62);
+    doc.setFontSize(22); doc.setTextColor(26, 26, 26);
     doc.text("Multilux", 20, 25);
     doc.setFontSize(10); doc.setTextColor(107, 101, 96);
     doc.text("Binnenzonwering op Maat", 20, 32);
     doc.text("Simon Stevinweg 25  |  3241 MD Middelharnis", 20, 37);
     doc.text("info@multilux-zonwering.nl  |  +31 (0) 187 47 88 33", 20, 42);
     // Lijn
-    doc.setDrawColor(196, 149, 106); doc.setLineWidth(0.5); doc.line(20, 48, 190, 48);
+    doc.setDrawColor(153, 146, 64); doc.setLineWidth(0.5); doc.line(20, 48, 190, 48);
     // Order info
     doc.setFontSize(14); doc.setTextColor(26, 26, 26);
     doc.text("Orderbevestiging", 20, 58);
@@ -503,7 +506,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
       head: [["Product", "Kleur", "Breedte", "Hoogte", "Montage", "Aantal"]],
       body: tableData,
       theme: "grid",
-      headStyles: { fillColor: [45, 74, 62], textColor: 255, fontSize: 10 },
+      headStyles: { fillColor: [26, 26, 26], textColor: 255, fontSize: 10 },
       styles: { fontSize: 9, cellPadding: 4 },
       alternateRowStyles: { fillColor: [245, 243, 237] },
     });
