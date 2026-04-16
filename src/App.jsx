@@ -75,10 +75,12 @@ function WachtScherm({ profiel, onLogout }) {
 }
 
 function LoginPage({ onLogin }) {
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login"); // login | register | forgot
   const [email, setEmail] = useState("");
   const [ww, setWw] = useState("");
   const [naam, setNaam] = useState("");
+  const [telefoon, setTelefoon] = useState("");
+  const [bedrijf, setBedrijf] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [anim, setAnim] = useState(false);
@@ -97,10 +99,20 @@ function LoginPage({ onLogin }) {
   const handleRegister = async () => {
     setErr(""); setLoading(true);
     if (!naam.trim()) { setErr("Vul een naam in"); setLoading(false); return; }
-    const { data, error } = await supabase.auth.signUp({ email, password: ww, options: { data: { naam: naam.trim(), rol: "klant" } } });
+    const { data, error } = await supabase.auth.signUp({ email, password: ww, options: { data: { naam: naam.trim(), rol: "klant", telefoon: telefoon.trim(), bedrijf: bedrijf.trim() } } });
     setLoading(false);
     if (error) { setErr(error.message); return; }
     setSuccess("Account aangemaakt! Een beheerder moet uw account nog goedkeuren voordat u kunt inloggen.");
+    setMode("login");
+  };
+
+  const handleForgotPassword = async () => {
+    setErr(""); setLoading(true);
+    if (!email.trim()) { setErr("Vul uw e-mailadres in"); setLoading(false); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setLoading(false);
+    if (error) { setErr(error.message); return; }
+    setSuccess("Er is een reset-link verstuurd naar uw e-mailadres.");
     setMode("login");
   };
 
@@ -116,18 +128,27 @@ function LoginPage({ onLogin }) {
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
         </div>
       </div>
-      <div style={{ width: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: 60, background: "var(--ml-bg)", opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>{mode === "login" ? "Welkom terug" : "Account aanmaken"}</h2>
-        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 36px" }}>{mode === "login" ? "Log in op uw Multilux account" : "Registreer als nieuwe klant"}</p>
+      <div style={{ width: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: 60, background: "var(--ml-bg)", opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s", overflowY: "auto" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>{mode === "login" ? "Welkom terug" : mode === "register" ? "Account aanmaken" : "Wachtwoord vergeten"}</h2>
+        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 36px" }}>{mode === "login" ? "Log in op uw Multilux account" : mode === "register" ? "Registreer als nieuwe klant" : "Voer uw e-mailadres in om een reset-link te ontvangen"}</p>
         {success && (<div style={{ marginBottom: 20, padding: "10px 16px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 13, fontWeight: 500 }}>✓ {success}</div>)}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {mode === "register" && (<Input label="Naam" value={naam} onChange={setNaam} placeholder="Uw volledige naam" />)}
+          {mode === "register" && (<>
+            <Input label="Naam *" value={naam} onChange={setNaam} placeholder="Uw volledige naam" />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Input label="Bedrijfsnaam (optioneel)" value={bedrijf} onChange={setBedrijf} placeholder="Uw bedrijf" />
+              <Input label="Telefoonnummer (optioneel)" value={telefoon} onChange={setTelefoon} placeholder="+31 6 12345678" />
+            </div>
+          </>)}
           <Input label="E-mailadres" type="email" value={email} onChange={setEmail} placeholder="uw@email.nl" />
-          <Input label="Wachtwoord" type="password" value={ww} onChange={setWw} placeholder="••••••••" />
+          {mode !== "forgot" && <Input label="Wachtwoord" type="password" value={ww} onChange={setWw} placeholder="••••••••" />}
         </div>
         {err && (<div style={{ marginTop: 16, padding: "10px 16px", borderRadius: 8, background: "var(--ml-error)10", color: "var(--ml-error)", fontSize: 13, fontWeight: 500 }}>⚠ {err}</div>)}
-        <Btn onClick={mode === "login" ? handleLogin : handleRegister} disabled={loading} style={{ marginTop: 28, width: "100%", padding: "14px 28px", fontSize: 15 }}>{loading ? "Even geduld..." : mode === "login" ? "Inloggen →" : "Registreren →"}</Btn>
-        <button onClick={() => { setMode(mode === "login" ? "register" : "login"); setErr(""); setSuccess(""); }} style={{ marginTop: 20, background: "none", border: "none", cursor: "pointer", color: "var(--ml-primary)", fontSize: 14, fontFamily: vars.fontFamily, fontWeight: 500 }}>{mode === "login" ? "Nog geen account? Registreer hier" : "Heb al een account? Log in"}</button>
+        <Btn onClick={mode === "login" ? handleLogin : mode === "register" ? handleRegister : handleForgotPassword} disabled={loading} style={{ marginTop: 28, width: "100%", padding: "14px 28px", fontSize: 15 }}>{loading ? "Even geduld..." : mode === "login" ? "Inloggen →" : mode === "register" ? "Registreren →" : "Reset-link versturen →"}</Btn>
+        {mode === "login" && (
+          <button onClick={() => { setMode("forgot"); setErr(""); setSuccess(""); }} style={{ marginTop: 12, background: "none", border: "none", cursor: "pointer", color: "var(--ml-text-light)", fontSize: 13, fontFamily: vars.fontFamily }}>Wachtwoord vergeten?</button>
+        )}
+        <button onClick={() => { setMode(mode === "register" ? "login" : mode === "forgot" ? "login" : "register"); setErr(""); setSuccess(""); }} style={{ marginTop: mode === "login" ? 8 : 20, background: "none", border: "none", cursor: "pointer", color: "var(--ml-primary)", fontSize: 14, fontFamily: vars.fontFamily, fontWeight: 500 }}>{mode === "login" ? "Nog geen account? Registreer hier" : "Terug naar inloggen"}</button>
       </div>
     </div>
   );
@@ -399,12 +420,16 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
   const [formEmail, setFormEmail] = useState("");
   const [formWw, setFormWw] = useState("");
   const [formRol, setFormRol] = useState("klant");
+  const [formTelefoon, setFormTelefoon] = useState("");
+  const [formBedrijf, setFormBedrijf] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const [formMsg, setFormMsg] = useState("");
   const [formErr, setFormErr] = useState("");
   const [editing, setEditing] = useState(null);
   const [editNaam, setEditNaam] = useState("");
   const [editRol, setEditRol] = useState("");
+  const [editTelefoon, setEditTelefoon] = useState("");
+  const [editBedrijf, setEditBedrijf] = useState("");
   const [resetMsg, setResetMsg] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -413,24 +438,24 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
   const handleCreateAccount = async () => {
     setFormErr(""); setFormMsg("");
-    if (!formNaam.trim() || !formEmail.trim() || !formWw.trim()) { setFormErr("Vul alle velden in"); return; }
+    if (!formNaam.trim() || !formEmail.trim() || !formWw.trim()) { setFormErr("Vul alle verplichte velden in"); return; }
     if (formWw.length < 6) { setFormErr("Wachtwoord moet minimaal 6 tekens zijn"); return; }
     setFormLoading(true);
     const { createClient } = await import("@supabase/supabase-js");
     const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-    const { error } = await tempClient.auth.signUp({ email: formEmail, password: formWw, options: { data: { naam: formNaam.trim(), rol: formRol } } });
+    const { error } = await tempClient.auth.signUp({ email: formEmail, password: formWw, options: { data: { naam: formNaam.trim(), rol: formRol, telefoon: formTelefoon.trim(), bedrijf: formBedrijf.trim() } } });
     setFormLoading(false);
     if (error) { setFormErr(error.message); return; }
     setFormMsg(`Account voor ${formNaam} aangemaakt!`);
-    setFormNaam(""); setFormEmail(""); setFormWw(""); setFormRol("klant");
+    setFormNaam(""); setFormEmail(""); setFormWw(""); setFormRol("klant"); setFormTelefoon(""); setFormBedrijf("");
     setTimeout(() => { setFormMsg(""); setShowForm(false); }, 2000);
     onRefresh();
   };
 
-  const handleEdit = (k) => { setEditing(k.id); setEditNaam(k.naam); setEditRol(k.rol); };
+  const handleEdit = (k) => { setEditing(k.id); setEditNaam(k.naam); setEditRol(k.rol); setEditTelefoon(k.telefoon || ""); setEditBedrijf(k.bedrijf || ""); };
 
   const handleSaveEdit = async () => {
-    await supabase.from("profielen").update({ naam: editNaam, rol: editRol }).eq("id", editing);
+    await supabase.from("profielen").update({ naam: editNaam, rol: editRol, telefoon: editTelefoon, bedrijf: editBedrijf }).eq("id", editing);
     setEditing(null);
     onRefresh();
   };
@@ -451,10 +476,12 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
   const handleExport = () => {
     const BOM = "\uFEFF";
-    const header = ["Naam", "E-mail", "Rol", "Goedgekeurd", "Geregistreerd"];
+    const header = ["Naam", "Bedrijf", "E-mail", "Telefoon", "Rol", "Goedgekeurd", "Geregistreerd"];
     const rows = klanten.map(k => [
       k.naam,
+      k.bedrijf || "",
       k.email,
+      k.telefoon || "",
       k.rol,
       k.goedgekeurd ? "Ja" : "Nee",
       new Date(k.created_at).toLocaleDateString("nl-NL"),
@@ -488,10 +515,12 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
         <Card style={{ marginBottom: 28, border: "1.5px solid var(--ml-primary)22" }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>Nieuw account aanmaken</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <Input label="Naam" value={formNaam} onChange={setFormNaam} placeholder="Volledige naam" />
-            <Input label="E-mailadres" type="email" value={formEmail} onChange={setFormEmail} placeholder="email@voorbeeld.nl" />
-            <Input label="Wachtwoord" type="password" value={formWw} onChange={setFormWw} placeholder="Min. 6 tekens" />
+            <Input label="Naam *" value={formNaam} onChange={setFormNaam} placeholder="Volledige naam" />
+            <Input label="E-mailadres *" type="email" value={formEmail} onChange={setFormEmail} placeholder="email@voorbeeld.nl" />
+            <Input label="Wachtwoord *" type="password" value={formWw} onChange={setFormWw} placeholder="Min. 6 tekens" />
             <Input label="Rol" value={formRol} onChange={setFormRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
+            <Input label="Bedrijfsnaam (optioneel)" value={formBedrijf} onChange={setFormBedrijf} placeholder="Bedrijfsnaam" />
+            <Input label="Telefoonnummer (optioneel)" value={formTelefoon} onChange={setFormTelefoon} placeholder="+31 6 12345678" />
           </div>
           {formErr && (<div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "var(--ml-error)10", color: "var(--ml-error)", fontSize: 13 }}>⚠ {formErr}</div>)}
           {formMsg && (<div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 13 }}>✓ {formMsg}</div>)}
@@ -506,8 +535,8 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
             <Card key={k.id} style={{ padding: 20, border: "1.5px solid var(--ml-warning)33" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}</div>
-                  <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}</div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
+                  <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
                   <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 4 }}>Geregistreerd: {fmtDate(k.created_at)}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -539,6 +568,8 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
                   <Input label="Naam" value={editNaam} onChange={setEditNaam} />
                   <Input label="Rol" value={editRol} onChange={setEditRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
+                  <Input label="Bedrijfsnaam" value={editBedrijf} onChange={setEditBedrijf} placeholder="Optioneel" />
+                  <Input label="Telefoonnummer" value={editTelefoon} onChange={setEditTelefoon} placeholder="Optioneel" />
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small onClick={handleSaveEdit}>Opslaan</Btn>
@@ -548,8 +579,8 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
             ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}</div>
-                  <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}</div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
+                  <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
                   <div style={{ marginTop: 6 }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge></div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
