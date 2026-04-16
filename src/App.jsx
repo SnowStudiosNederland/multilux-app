@@ -376,13 +376,30 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
 }
 
 function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
+  const [zoek, setZoek] = useState("");
+  const zoekLower = zoek.toLowerCase();
+  const gefilterd = zoek ? bestellingen.filter(b => {
+    const prod = producten.find(p => p.id === b.product_id);
+    return [b.order_nr, prod?.naam, b.kleur, b.montage, b.opmerking, b.profielen?.naam, b.profielen?.email]
+      .filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
+  }) : bestellingen;
+
   return (
     <div style={{ padding: 40 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Bestellingen</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer en verwerk alle bestellingen.</p>
-      {bestellingen.length === 0 ? (<Card style={{ textAlign: "center", padding: 48, color: "var(--ml-text-light)" }}>Nog geen bestellingen.</Card>) : (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Bestellingen</h1>
+          <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer en verwerk alle bestellingen.</p>
+        </div>
+        <div style={{ position: "relative" }}>
+          <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek op klant, product, ordernr..."
+            style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: 280 }} />
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--ml-text-light)" }}>⌕</span>
+        </div>
+      </div>
+      {gefilterd.length === 0 ? (<Card style={{ textAlign: "center", padding: 48, color: "var(--ml-text-light)" }}>{zoek ? `Geen resultaten voor "${zoek}"` : "Nog geen bestellingen."}</Card>) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {[...bestellingen].reverse().map(b => {
+          {[...gefilterd].reverse().map(b => {
             const prod = producten.find(p => p.id === b.product_id);
             return (
               <Card key={b.id} style={{ padding: 24 }}>
@@ -432,9 +449,12 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
   const [editBedrijf, setEditBedrijf] = useState("");
   const [resetMsg, setResetMsg] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [zoek, setZoek] = useState("");
 
-  const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin");
-  const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin");
+  const zoekLower = zoek.toLowerCase();
+  const filterKlant = (k) => !zoek || [k.naam, k.email, k.telefoon, k.bedrijf].filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
+  const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin").filter(filterKlant);
+  const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin").filter(filterKlant);
 
   const handleCreateAccount = async () => {
     setFormErr(""); setFormMsg("");
@@ -535,7 +555,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
   return (
     <div style={{ padding: 40 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer gebruikersaccounts en goedkeuringen.</p>
@@ -544,6 +564,11 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
           <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
           <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Account aanmaken"}</Btn>
         </div>
+      </div>
+      <div style={{ marginBottom: 24, position: "relative" }}>
+        <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek op naam, e-mail, bedrijf of telefoon..."
+          style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: "100%", boxSizing: "border-box" }} />
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--ml-text-light)" }}>⌕</span>
       </div>
 
       {resetMsg && (<Card style={{ marginBottom: 16, padding: "12px 20px", border: "1.5px solid var(--ml-success)44" }}><div style={{ fontSize: 13, color: "var(--ml-success)", fontWeight: 500 }}>✓ {resetMsg}</div></Card>)}
