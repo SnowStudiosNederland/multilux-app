@@ -195,9 +195,36 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [succes, setSucces] = useState(false);
+  const [regels, setRegels] = useState([]);
+  const [maten, setMaten] = useState([]);
+  const [maatLabel, setMaatLabel] = useState("");
+  const [showSaveMaat, setShowSaveMaat] = useState(false);
   const gekozenProduct = producten.find(p => p.id === productId);
 
-  const validate = () => {
+  useEffect(() => { if (profiel) loadMaten(); }, [profiel]);
+
+  const loadMaten = async () => {
+    const { data } = await supabase.from("standaard_maten").select("*").eq("klant_id", profiel.id);
+    setMaten(data || []);
+  };
+
+  const saveMaat = async () => {
+    if (!maatLabel.trim() || !productId || !breedte || !hoogte || !montage) return;
+    await supabase.from("standaard_maten").insert({ klant_id: profiel.id, product_id: productId, label: maatLabel.trim(), breedte: +breedte, hoogte: +hoogte, montage });
+    setMaatLabel(""); setShowSaveMaat(false);
+    loadMaten();
+  };
+
+  const deleteMaat = async (id) => {
+    await supabase.from("standaard_maten").delete().eq("id", id);
+    loadMaten();
+  };
+
+  const vulMaat = (m) => { setBreedte(String(m.breedte)); setHoogte(String(m.hoogte)); setMontage(m.montage); };
+
+  const productMaten = maten.filter(m => m.product_id === productId);
+
+  const validateRegel = () => {
     const e = {};
     if (!productId) e.product = "Selecteer een product";
     if (!kleur) e.kleur = "Selecteer een kleur";
@@ -211,15 +238,25 @@ function BestelForm({ profiel, producten, onBesteld }) {
     return Object.keys(e).length === 0;
   };
 
+  const voegToe = () => {
+    if (!validateRegel()) return;
+    const prod = producten.find(p => p.id === productId);
+    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, kleur, breedte: +breedte, hoogte: +hoogte, montage, aantal: +aantal }]);
+    setBreedte(""); setHoogte(""); setAantal("1"); setErrors({});
+  };
+
+  const verwijderRegel = (id) => setRegels(prev => prev.filter(r => r.id !== id));
+
   const handleSubmit = async () => {
-    if (!validate()) return;
+    if (regels.length === 0) { if (!validateRegel()) return; voegToe(); return; }
     setLoading(true);
-    const { error } = await supabase.from("bestellingen").insert({ order_nr: genOrderNr(), klant_id: profiel.id, product_id: productId, kleur, breedte: +breedte, hoogte: +hoogte, montage, aantal: +aantal, opmerking });
+    const orderNr = genOrderNr();
+    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, aantal: r.aantal, opmerking }));
+    const { error } = await supabase.from("bestellingen").insert(inserts);
     setLoading(false);
-    if (error) { alert("Fout bij plaatsen bestelling: " + error.message); return; }
-    setSucces(true);
-    onBesteld();
-    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setBreedte(""); setHoogte(""); setMontage(""); setAantal("1"); setOpmerking(""); setErrors({}); }, 3000);
+    if (error) { alert("Fout: " + error.message); return; }
+    setSucces(true); onBesteld();
+    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setBreedte(""); setHoogte(""); setMontage(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
   };
 
   if (succes) {
@@ -229,7 +266,30 @@ function BestelForm({ profiel, producten, onBesteld }) {
   return (
     <div style={{ padding: 40, maxWidth: 900 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Nieuwe Bestelling</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 32px" }}>Vul de maten en specificaties van uw binnenzonwering in.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 32px" }}>Voeg één of meerdere producten toe aan uw bestelling.</p>
+
+      {/* Winkelwagen */}
+      {regels.length > 0 && (
+        <Card style={{ marginBottom: 24, border: "1.5px solid var(--ml-primary)22" }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Uw bestelling ({regels.length} {regels.length === 1 ? "item" : "items"})</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {regels.map(r => (
+              <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--ml-surface-alt)", borderRadius: 8 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  {PRODUCT_IMAGES[r.productNaam] && <img src={PRODUCT_IMAGES[r.productNaam]} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover" }} />}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{r.productNaam} — {r.kleur}</div>
+                    <div style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{r.breedte} × {r.hoogte} cm · {r.montage} · {r.aantal}×</div>
+                  </div>
+                </div>
+                <button onClick={() => verwijderRegel(r.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 16, padding: 4 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Product selectie */}
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>1. Kies uw product</h3>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
@@ -250,6 +310,8 @@ function BestelForm({ profiel, producten, onBesteld }) {
         </div>
         {errors.product && <span style={{ fontSize: 12, color: "var(--ml-error)", marginTop: 8, display: "block" }}>{errors.product}</span>}
       </Card>
+
+      {/* Specificaties */}
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>2. Specificaties</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -257,10 +319,32 @@ function BestelForm({ profiel, producten, onBesteld }) {
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
         </div>
       </Card>
+
+      {/* Maten */}
       <Card style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 6px", color: "var(--ml-primary)" }}>3. Maten invoeren</h3>
-        <p style={{ fontSize: 13, color: "var(--ml-text-light)", margin: "0 0 20px" }}>Meet de exacte binnenafmetingen van uw raamkozijn in centimeters.</p>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28, padding: 20, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--ml-primary)" }}>3. Maten invoeren</h3>
+        </div>
+        <p style={{ fontSize: 13, color: "var(--ml-text-light)", margin: "0 0 16px" }}>Meet de exacte binnenafmetingen van uw raamkozijn in centimeters.</p>
+
+        {/* Opgeslagen standaardmaten */}
+        {productId && productMaten.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ml-text-light)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Opgeslagen maten</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {productMaten.map(m => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => vulMaat(m)} style={{ fontFamily: vars.fontFamily, fontSize: 12, padding: "6px 12px", border: "1.5px solid var(--ml-primary)33", borderRadius: 6, background: "var(--ml-primary)08", color: "var(--ml-primary)", cursor: "pointer", fontWeight: 500 }}>
+                    {m.label} ({m.breedte}×{m.hoogte} cm)
+                  </button>
+                  <button onClick={() => deleteMaat(m.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ml-text-light)", fontSize: 13, padding: 2 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20, padding: 20, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
           <svg width="200" height="160" viewBox="0 0 200 160">
             <rect x="30" y="10" width="140" height="120" fill="none" stroke="var(--ml-primary)" strokeWidth="2" rx="2" />
             <line x1="30" y1="140" x2="170" y2="140" stroke="var(--ml-accent)" strokeWidth="2" /><line x1="25" y1="140" x2="35" y2="140" stroke="var(--ml-accent)" strokeWidth="2" /><line x1="165" y1="140" x2="175" y2="140" stroke="var(--ml-accent)" strokeWidth="2" />
@@ -275,46 +359,82 @@ function BestelForm({ profiel, producten, onBesteld }) {
           <Input label="Hoogte" type="number" value={hoogte} onChange={setHoogte} placeholder="bijv. 160" suffix="cm" error={errors.hoogte} />
           <Input label="Aantal" type="number" value={aantal} onChange={setAantal} placeholder="1" error={errors.aantal} />
         </div>
+
+        {/* Maten opslaan */}
+        {productId && breedte && hoogte && montage && (
+          <div style={{ marginTop: 16 }}>
+            {showSaveMaat ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <Input label="Naam voor deze maat" value={maatLabel} onChange={setMaatLabel} placeholder="bijv. Woonkamer links" style={{ flex: 1 }} />
+                <Btn small onClick={saveMaat}>Opslaan</Btn>
+                <Btn small variant="ghost" onClick={() => setShowSaveMaat(false)}>Annuleren</Btn>
+              </div>
+            ) : (
+              <button onClick={() => setShowSaveMaat(true)} style={{ fontFamily: vars.fontFamily, fontSize: 12, color: "var(--ml-primary)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, padding: 0 }}>
+                + Bewaar deze maten als standaard
+              </button>
+            )}
+          </div>
+        )}
       </Card>
+
+      {/* Opmerking */}
       <Card style={{ marginBottom: 28 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>4. Opmerkingen (optioneel)</h3>
         <textarea value={opmerking} onChange={e => setOpmerking(e.target.value)} placeholder="Bijv. speciale montagewensen, draairichting, etc." rows={3} style={{ width: "100%", boxSizing: "border-box", fontFamily: vars.fontFamily, fontSize: 14, padding: "12px 14px", border: "1.5px solid var(--ml-border)", borderRadius: 8, resize: "vertical", outline: "none" }} />
       </Card>
-      <Btn onClick={handleSubmit} disabled={loading} style={{ padding: "14px 48px", fontSize: 15 }}>{loading ? "Bezig met plaatsen..." : "Bestelling plaatsen →"}</Btn>
+
+      <div style={{ display: "flex", gap: 12 }}>
+        <Btn variant="outline" onClick={voegToe} style={{ padding: "14px 32px", fontSize: 15 }}>+ Nog een maat toevoegen</Btn>
+        <Btn onClick={handleSubmit} disabled={loading} style={{ padding: "14px 48px", fontSize: 15 }}>
+          {loading ? "Bezig met plaatsen..." : `Bestelling plaatsen${regels.length > 0 ? ` (${regels.length} items)` : ""} →`}
+        </Btn>
+      </div>
     </div>
   );
 }
 
 function MijnBestellingen({ bestellingen, producten, loading }) {
   if (loading) return <Loader />;
+  // Groepeer op order_nr
+  const orders = {};
+  bestellingen.forEach(b => { if (!orders[b.order_nr]) orders[b.order_nr] = []; orders[b.order_nr].push(b); });
+  const orderList = Object.entries(orders).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
+
   return (
     <div style={{ padding: 40, maxWidth: 900 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Mijn Bestellingen</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van al uw geplaatste bestellingen.</p>
-      {bestellingen.length === 0 ? (
+      {orderList.length === 0 ? (
         <Card style={{ textAlign: "center", padding: "60px 40px", color: "var(--ml-text-light)" }}><div style={{ fontSize: 40, marginBottom: 12 }}>📋</div><p style={{ fontSize: 15 }}>U heeft nog geen bestellingen geplaatst.</p></Card>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {bestellingen.map(b => {
-            const prod = producten.find(p => p.id === b.product_id);
-            return (
-              <Card key={b.id} style={{ padding: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod?.naam] ? <img src={PRODUCT_IMAGES[prod?.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod?.icon || "▦"}</div>}</div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 15, color: "var(--ml-text)" }}>{prod?.naam || "Product"} — {b.kleur}</div>
-                      <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{b.breedte} × {b.hoogte} cm · {b.montage} · {b.aantal}×</div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <Badge color={statusKleur[b.status]}>{b.status}</Badge>
-                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 6 }}>{b.order_nr} · {fmtDate(b.created_at)}</div>
-                  </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {orderList.map(([orderNr, items]) => (
+            <Card key={orderNr} style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 1 ? 16 : 0 }}>
+                <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>{orderNr} · {fmtDate(items[0].created_at)}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {items.length > 1 && <span style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{items.length} items</span>}
+                  <Badge color={statusKleur[items[0].status]}>{items[0].status}</Badge>
                 </div>
-              </Card>
-            );
-          })}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {items.map(b => {
+                  const prod = producten.find(p => p.id === b.product_id);
+                  return (
+                    <div key={b.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: items.length > 1 ? "10px 12px" : 0, background: items.length > 1 ? "var(--ml-surface-alt)" : "transparent", borderRadius: 8 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 8, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod?.naam] ? <img src={PRODUCT_IMAGES[prod?.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{prod?.icon || "▦"}</div>}</div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{prod?.naam || "Product"} — {b.kleur}</div>
+                        <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 1 }}>{b.breedte} × {b.hoogte} cm · {b.montage} · {b.aantal}×</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {items[0].opmerking && <div style={{ marginTop: 10, fontSize: 12, color: "var(--ml-text-light)", fontStyle: "italic", padding: "6px 10px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>💬 {items[0].opmerking}</div>}
+            </Card>
+          ))}
         </div>
       )}
     </div>
