@@ -191,7 +191,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
   const isAdmin = profiel?.rol === "admin";
   const items = isAdmin
     ? [{ id: "dashboard", label: "Dashboard", icon: "◫" }, { id: "bestellingen", label: "Bestellingen", icon: "☰" }, { id: "klanten", label: "Klanten", icon: "◉", badge: aantalWachtend }, { id: "producten", label: "Producten", icon: "▦" }]
-    : [{ id: "bestellen", label: "Nieuwe Bestelling", icon: "＋" }, { id: "mijn-bestellingen", label: "Mijn Bestellingen", icon: "☰" }];
+    : [{ id: "bestellen", label: "Nieuwe Bestelling", icon: "＋" }, { id: "mijn-bestellingen", label: "Mijn Bestellingen", icon: "☰" }, { id: "standaardmaten", label: "Mijn Maten", icon: "◳" }];
 
   const handleNav = (id) => { onNav(id); if (isMobile) setOpen(false); };
 
@@ -558,6 +558,158 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function StandaardMaten({ profiel, producten }) {
+  const [maten, setMaten] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [productId, setProductId] = useState("");
+  const [label, setLabel] = useState("");
+  const [breedte, setBreedte] = useState("");
+  const [hoogte, setHoogte] = useState("");
+  const [montage, setMontage] = useState("");
+  const [errors, setErrors] = useState({});
+  const [editing, setEditing] = useState(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editBreedte, setEditBreedte] = useState("");
+  const [editHoogte, setEditHoogte] = useState("");
+  const [editMontage, setEditMontage] = useState("");
+
+  useEffect(() => { loadMaten(); }, []);
+
+  const loadMaten = async () => {
+    const { data } = await supabase.from("standaard_maten").select("*").eq("klant_id", profiel.id).order("created_at");
+    setMaten(data || []);
+    setLoading(false);
+  };
+
+  const validate = () => {
+    const e = {};
+    if (!productId) e.product = "Selecteer een product";
+    if (!label.trim()) e.label = "Geef een naam op";
+    if (!breedte || breedte < 20) e.breedte = "Min. 20 cm";
+    if (!hoogte || hoogte < 20) e.hoogte = "Min. 20 cm";
+    if (breedte > 400) e.breedte = "Max. 400 cm";
+    if (hoogte > 350) e.hoogte = "Max. 350 cm";
+    if (!montage) e.montage = "Selecteer montagetype";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleAdd = async () => {
+    if (!validate()) return;
+    await supabase.from("standaard_maten").insert({ klant_id: profiel.id, product_id: productId, label: label.trim(), breedte: +breedte, hoogte: +hoogte, montage });
+    setLabel(""); setBreedte(""); setHoogte(""); setMontage(""); setProductId(""); setErrors({}); setShowForm(false);
+    loadMaten();
+  };
+
+  const handleDelete = async (id) => {
+    await supabase.from("standaard_maten").delete().eq("id", id);
+    loadMaten();
+  };
+
+  const startEdit = (m) => {
+    setEditing(m.id); setEditLabel(m.label); setEditBreedte(String(m.breedte)); setEditHoogte(String(m.hoogte)); setEditMontage(m.montage);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editLabel.trim() || !editBreedte || !editHoogte || !editMontage) return;
+    await supabase.from("standaard_maten").update({ label: editLabel.trim(), breedte: +editBreedte, hoogte: +editHoogte, montage: editMontage }).eq("id", editing);
+    setEditing(null);
+    loadMaten();
+  };
+
+  if (loading) return <Loader />;
+
+  // Groepeer per product
+  const perProduct = {};
+  maten.forEach(m => {
+    const prod = producten.find(p => p.id === m.product_id);
+    const naam = prod?.naam || "Onbekend";
+    if (!perProduct[naam]) perProduct[naam] = { prod, items: [] };
+    perProduct[naam].items.push(m);
+  });
+
+  return (
+    <div className="ml-page" style={{ padding: 40, maxWidth: 900, margin: "0 auto" }}>
+      <div className="ml-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Mijn Standaardmaten</h1>
+          <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Bewaar uw vaste maten zodat u ze snel kunt gebruiken bij het bestellen.</p>
+        </div>
+        <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Nieuwe maat"}</Btn>
+      </div>
+
+      {showForm && (
+        <Card style={{ marginBottom: 24, border: "1.5px solid var(--ml-accent)33" }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>Nieuwe standaardmaat toevoegen</h3>
+          <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <Input label="Product *" value={productId} onChange={setProductId} error={errors.product}
+              options={producten.filter(p => p.actief).map(p => ({ value: p.id, label: p.naam }))} />
+            <Input label="Naam / Locatie *" value={label} onChange={setLabel} placeholder="bijv. Woonkamer links" error={errors.label} />
+          </div>
+          <div className="ml-form-grid3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <Input label="Breedte *" type="number" value={breedte} onChange={setBreedte} placeholder="cm" suffix="cm" error={errors.breedte} />
+            <Input label="Hoogte *" type="number" value={hoogte} onChange={setHoogte} placeholder="cm" suffix="cm" error={errors.hoogte} />
+            <Input label="Montagetype *" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
+          </div>
+          <Btn small onClick={handleAdd}>Opslaan</Btn>
+        </Card>
+      )}
+
+      {maten.length === 0 && !showForm ? (
+        <Card style={{ textAlign: "center", padding: "60px 40px", color: "var(--ml-text-light)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📐</div>
+          <p style={{ fontSize: 15, marginBottom: 16 }}>U heeft nog geen standaardmaten opgeslagen.</p>
+          <p style={{ fontSize: 13 }}>Voeg maten toe zodat u bij het bestellen met één klik uw vaste afmetingen kunt invullen.</p>
+        </Card>
+      ) : (
+        Object.entries(perProduct).map(([naam, { prod, items }]) => (
+          <div key={naam} style={{ marginBottom: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              {PRODUCT_IMAGES[naam] && <img src={PRODUCT_IMAGES[naam]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover" }} />}
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--ml-text)", margin: 0 }}>{naam}</h3>
+              <span style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{items.length} {items.length === 1 ? "maat" : "maten"}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {items.map(m => (
+                <Card key={m.id} style={{ padding: 16 }}>
+                  {editing === m.id ? (
+                    <div>
+                      <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                        <Input label="Naam" value={editLabel} onChange={setEditLabel} />
+                        <Input label="Montagetype" value={editMontage} onChange={setEditMontage} options={MONTAGETYPES} />
+                        <Input label="Breedte" type="number" value={editBreedte} onChange={setEditBreedte} suffix="cm" />
+                        <Input label="Hoogte" type="number" value={editHoogte} onChange={setEditHoogte} suffix="cm" />
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn small onClick={handleSaveEdit}>Opslaan</Btn>
+                        <Btn small variant="ghost" onClick={() => setEditing(null)}>Annuleren</Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{m.label}</div>
+                        <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>
+                          {m.breedte} × {m.hoogte} cm · {m.montage}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn small variant="outline" onClick={() => startEdit(m)}>Bewerken</Btn>
+                        <Btn small variant="ghost" onClick={() => handleDelete(m.id)} style={{ color: "var(--ml-error)" }}>Verwijderen</Btn>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))
       )}
     </div>
   );
@@ -1046,6 +1198,7 @@ export default function MultiluxApp() {
       switch (pagina) {
         case "bestellen": return <BestelForm profiel={profiel} producten={producten} onBesteld={() => loadBestellingen(profiel)} />;
         case "mijn-bestellingen": return <MijnBestellingen bestellingen={bestellingen} producten={producten} profiel={profiel} />;
+        case "standaardmaten": return <StandaardMaten profiel={profiel} producten={producten} />;
         default: return <BestelForm profiel={profiel} producten={producten} onBesteld={() => loadBestellingen(profiel)} />;
       }
     }
