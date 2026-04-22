@@ -232,20 +232,20 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
   }
 
   return (
-    <div style={{ width: 250, minHeight: "100vh", background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
-      <div style={{ padding: "0 28px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+    <div style={{ width: 250, height: "100vh", position: "sticky", top: 0, background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
+      <div style={{ padding: "0 28px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
         <img src={ML_LOGO} alt="Multilux" style={{ width: 140, filter: "brightness(0) invert(1)" }} />
       </div>
-      <nav style={{ flex: 1, padding: "24px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+      <nav style={{ flex: 1, padding: "24px 12px", display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
         {items.map(it => (
-          <button key={it.id} onClick={() => onNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "rgba(255,255,255,0.1)" : "transparent", color: actief === it.id ? "#fff" : "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, transition: "all .15s", textAlign: "left" }}>
+          <button key={it.id} onClick={() => onNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "rgba(255,255,255,0.1)" : "transparent", color: actief === it.id ? "#fff" : "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, transition: "all .15s", textAlign: "left", flexShrink: 0 }}>
             <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{it.icon}</span>
             {it.label}
             {it.badge > 0 && (<span style={{ marginLeft: "auto", background: "var(--ml-error)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>{it.badge}</span>)}
           </button>
         ))}
       </nav>
-      <div style={{ padding: "20px 20px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+      <div style={{ padding: "20px 20px", borderTop: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500, marginBottom: 4 }}>{profiel?.naam}</div>
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{profiel?.email}</div>
         <Badge color={profiel?.rol === "admin" ? "#E67E22" : "#27AE60"}>{profiel?.rol}</Badge><br />
