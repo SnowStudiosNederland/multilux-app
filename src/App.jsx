@@ -1156,16 +1156,21 @@ export default function MultiluxApp() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) loadProfiel(session.user.id); else setLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { setSession(session); if (session) loadProfiel(session.user.id); else { setProfiel(null); setLoading(false); } });
+    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) loadProfiel(session.user.id, true); else setLoading(false); });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (_event === "SIGNED_IN") loadProfiel(session.user.id, true);
+      else if (_event === "SIGNED_OUT") { setProfiel(null); setPagina(""); setLoading(false); }
+      else if (session && !profiel) loadProfiel(session.user.id, true);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfiel = async (userId) => {
+  const loadProfiel = async (userId, setDefaultPage) => {
     const { data } = await supabase.from("profielen").select("*").eq("id", userId).single();
     setProfiel(data);
     if (data?.goedgekeurd || data?.rol === "admin") {
-      setPagina(data?.rol === "admin" ? "dashboard" : "bestellen");
+      if (setDefaultPage) setPagina(prev => prev || (data?.rol === "admin" ? "dashboard" : "bestellen"));
       await loadProducten();
       await loadBestellingen(data);
       if (data?.rol === "admin") await loadKlanten();
