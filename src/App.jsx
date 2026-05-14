@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { createDebtor, createInvoice, getInvoice, mapInvoiceStatus, getAllDebtors, getDebtor } from "./wefact-helper";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;500;600;700&display=swap');`;
 
@@ -324,8 +325,15 @@ function BestelForm({ profiel, producten, onBesteld }) {
     const orderNr = genOrderNr();
     const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, aantal: r.aantal, opmerking }));
     const { error } = await supabase.from("bestellingen").insert(inserts);
+    if (error) { setLoading(false); alert("Fout: " + error.message); return; }
+    // WeFact factuur aanmaken
+    if (profiel.wefact_code) {
+      try {
+        const wfCode = await createInvoice({ debtorCode: profiel.wefact_code, orderNr, items: regels, producten });
+        if (wfCode) await supabase.from("bestellingen").update({ wefact_code: wfCode, wefact_status: "concept" }).eq("order_nr", orderNr);
+      } catch (e) { console.warn("WeFact factuur aanmaken mislukt:", e.message); }
+    }
     setLoading(false);
-    if (error) { alert("Fout: " + error.message); return; }
     setSucces(true); onBesteld();
     setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setBreedte(""); setHoogte(""); setMontage(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
   };
@@ -769,8 +777,9 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
   );
 }
 
-function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
+function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFact }) {
   const [zoek, setZoek] = useState("");
+  const [syncing, setSyncing] = useState(false);
   const zoekLower = zoek.toLowerCase();
   const gefilterd = zoek ? bestellingen.filter(b => {
     const prod = producten.find(p => p.id === b.product_id);
@@ -827,6 +836,7 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer en verwerk alle bestellingen.</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <Btn onClick={async () => { setSyncing(true); await onSyncWeFact(); setSyncing(false); }} variant="outline" small disabled={syncing}>{syncing ? "Synchroniseren..." : "↻ WeFact sync"}</Btn>
           <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
           <div style={{ position: "relative" }}>
             <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek..."
@@ -853,6 +863,7 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate }) {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>{b.order_nr} · {fmtDate(b.created_at)}</div>
+                    {b.wefact_code && <div style={{ fontSize: 11, marginTop: 2 }}><Badge color={b.wefact_status === "betaald" ? "#27AE60" : b.wefact_status === "openstaand" ? "#E67E22" : "#999"}>{b.wefact_status || "concept"}</Badge> <span style={{ color: "var(--ml-text-light)", fontSize: 10 }}>WeFact: {b.wefact_code}</span></div>}
                     <div className="ml-status-btns" style={{ display: "flex", gap: 6 }}>
                       {["nieuw", "verwerkt", "gereed", "geannuleerd"].map(s => (
                         <button key={s} onClick={() => onStatusUpdate(b.id, s)} style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontFamily: vars.fontFamily, background: b.status === s ? statusKleur[s] + "18" : "transparent", color: b.status === s ? statusKleur[s] : "var(--ml-text-light)", border: b.status === s ? `1.5px solid ${statusKleur[s]}44` : "1.5px solid var(--ml-border)", transition: "all .15s" }}>{s}</button>
@@ -888,11 +899,61 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
   const [resetMsg, setResetMsg] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [zoek, setZoek] = useState("");
+  const [wfDebtors, setWfDebtors] = useState([]);
+  const [wfSyncing, setWfSyncing] = useState(false);
+  const [wfLoaded, setWfLoaded] = useState(false);
+  const [wfCreating, setWfCreating] = useState(null);
 
   const zoekLower = zoek.toLowerCase();
   const filterKlant = (k) => !zoek || [k.naam, k.email, k.telefoon, k.bedrijf].filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
   const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin").filter(filterKlant);
   const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin").filter(filterKlant);
+
+  // WeFact debiteuren die nog geen portaal-account hebben
+  const gekoppeldeEmails = klanten.map(k => k.email?.toLowerCase());
+  const gekoppeldeCodes = klanten.map(k => k.wefact_code).filter(Boolean);
+  const onbekoppeld = wfDebtors.filter(d => {
+    const email = (d.EmailAddress || "").toLowerCase();
+    const code = d.DebtorCode || d.Identifier || "";
+    return !gekoppeldeEmails.includes(email) && !gekoppeldeCodes.includes(code);
+  }).filter(d => {
+    if (!zoek) return true;
+    return [d.CompanyName, d.SurName, d.Initials, d.EmailAddress, d.DebtorCode].filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
+  });
+
+  const syncWeFact = async () => {
+    setWfSyncing(true);
+    try {
+      const debtors = await getAllDebtors();
+      setWfDebtors(debtors);
+      setWfLoaded(true);
+    } catch (e) { setResetMsg("WeFact sync mislukt: " + e.message); }
+    setWfSyncing(false);
+  };
+
+  const createPortalFromWeFact = async (debtor) => {
+    const code = debtor.DebtorCode || debtor.Identifier || "";
+    const email = debtor.EmailAddress || "";
+    const naam = [debtor.Initials, debtor.SurName].filter(Boolean).join(" ") || debtor.CompanyName || "Klant";
+    const bedrijf = debtor.CompanyName || "";
+    const telefoon = debtor.PhoneNumber || "";
+    if (!email) { setResetMsg("Deze debiteur heeft geen e-mailadres in WeFact"); return; }
+    setWfCreating(code);
+    try {
+      const tempWw = "Multilux" + Math.random().toString(36).slice(2, 8) + "!";
+      const { createClient } = await import("@supabase/supabase-js");
+      const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+      const { error } = await tempClient.auth.signUp({ email, password: tempWw, options: { data: { naam, rol: "klant", telefoon, bedrijf } } });
+      if (error) { setResetMsg("Fout: " + error.message); setWfCreating(null); return; }
+      // Wacht even op trigger, dan update wefact_code en goedkeuring
+      await new Promise(r => setTimeout(r, 1500));
+      await supabase.from("profielen").update({ wefact_code: code, goedgekeurd: true, bedrijf, telefoon }).eq("email", email);
+      setResetMsg(`Account aangemaakt voor ${naam} (${email}). Tijdelijk wachtwoord: ${tempWw}`);
+      onRefresh();
+      syncWeFact();
+    } catch (e) { setResetMsg("Fout: " + e.message); }
+    setWfCreating(null);
+  };
 
   const handleCreateAccount = async () => {
     setFormErr(""); setFormMsg("");
@@ -1027,6 +1088,39 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
           <Btn onClick={handleCreateAccount} disabled={formLoading} small>{formLoading ? "Bezig..." : "Account aanmaken"}</Btn>
         </Card>
       )}
+
+      {/* WeFact sync sectie */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--ml-accent)" }}>WeFact Debiteuren</h3>
+          <Btn small variant="outline" onClick={syncWeFact} disabled={wfSyncing}>{wfSyncing ? "Synchroniseren..." : wfLoaded ? "↻ Opnieuw laden" : "↻ Sync vanuit WeFact"}</Btn>
+        </div>
+        {wfLoaded && onbekoppeld.length === 0 && (
+          <Card style={{ padding: "16px 20px", color: "var(--ml-text-light)", fontSize: 13 }}>✓ Alle WeFact debiteuren zijn gekoppeld aan een portaal-account.</Card>
+        )}
+        {onbekoppeld.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {onbekoppeld.map(d => {
+              const code = d.DebtorCode || d.Identifier || "";
+              const naam = [d.Initials, d.SurName].filter(Boolean).join(" ") || d.CompanyName || "—";
+              return (
+                <Card key={code} style={{ padding: 16, border: "1.5px solid var(--ml-accent)33" }}>
+                  <div className="ml-klant-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{naam}{d.CompanyName && d.SurName && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {d.CompanyName}</span>}</div>
+                      <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{d.EmailAddress || "Geen e-mail"}{d.PhoneNumber && <span> · {d.PhoneNumber}</span>}</div>
+                      <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 2, fontFamily: "monospace" }}>{code}</div>
+                    </div>
+                    <Btn small variant="accent" onClick={() => createPortalFromWeFact(d)} disabled={wfCreating === code || !d.EmailAddress}>
+                      {wfCreating === code ? "Bezig..." : "Portal account aanmaken"}
+                    </Btn>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {wachtend.length > 0 && (<>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-warning)" }}>⏳ Wachtend op goedkeuring ({wachtend.length})</h3>
@@ -1182,7 +1276,33 @@ export default function MultiluxApp() {
   const loadBestellingen = async (prof) => { let query = supabase.from("bestellingen").select("*, profielen(naam, email)").order("created_at"); if (prof?.rol !== "admin") query = query.eq("klant_id", prof.id); const { data } = await query; setBestellingen(data || []); };
   const loadKlanten = async () => { const { data } = await supabase.from("profielen").select("*").order("created_at"); setKlanten(data || []); };
   const onStatusUpdate = async (id, status) => { await supabase.from("bestellingen").update({ status, updated_at: new Date().toISOString() }).eq("id", id); await loadBestellingen(profiel); };
-  const onGoedkeuren = async (id) => { await supabase.from("profielen").update({ goedgekeurd: true }).eq("id", id); await loadKlanten(); };
+
+  const onSyncWeFact = async () => {
+    const metWefact = bestellingen.filter(b => b.wefact_code && b.wefact_status !== "betaald");
+    const codes = [...new Set(metWefact.map(b => b.wefact_code))];
+    for (const code of codes) {
+      try {
+        const invoice = await getInvoice(code);
+        if (invoice) {
+          const status = mapInvoiceStatus(invoice.Status);
+          await supabase.from("bestellingen").update({ wefact_status: status }).eq("wefact_code", code);
+        }
+      } catch (e) { console.warn("Sync mislukt voor", code, e.message); }
+    }
+    await loadBestellingen(profiel);
+  };
+  const onGoedkeuren = async (id) => {
+    await supabase.from("profielen").update({ goedgekeurd: true }).eq("id", id);
+    // WeFact debiteur aanmaken
+    try {
+      const { data: klant } = await supabase.from("profielen").select("*").eq("id", id).single();
+      if (klant) {
+        const wefactCode = await createDebtor({ naam: klant.naam, email: klant.email, bedrijf: klant.bedrijf, telefoon: klant.telefoon });
+        if (wefactCode) await supabase.from("profielen").update({ wefact_code: wefactCode }).eq("id", id);
+      }
+    } catch (e) { console.warn("WeFact debiteur aanmaken mislukt:", e.message); }
+    await loadKlanten();
+  };
   const onAfwijzen = async (id) => { await supabase.from("profielen").update({ goedgekeurd: false }).eq("id", id); await loadKlanten(); };
   const handleLogout = async () => { await supabase.auth.signOut(); setProfiel(null); setSession(null); };
 
@@ -1194,7 +1314,7 @@ export default function MultiluxApp() {
     if (profiel?.rol === "admin") {
       switch (pagina) {
         case "dashboard": return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
-        case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} producten={producten} onStatusUpdate={onStatusUpdate} />;
+        case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} producten={producten} onStatusUpdate={onStatusUpdate} onSyncWeFact={onSyncWeFact} />;
         case "klanten": return <AdminKlanten klanten={klanten} onGoedkeuren={onGoedkeuren} onAfwijzen={onAfwijzen} onRefresh={loadKlanten} />;
         case "producten": return <AdminProducten producten={producten} onRefresh={loadProducten} />;
         default: return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
