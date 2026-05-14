@@ -26,24 +26,23 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ error: "Not allowed: " + controller + "/" + action });
     }
 
-    // WeFact expects form-urlencoded data
     const formData = new URLSearchParams();
     formData.append("api_key", apiKey);
     formData.append("controller", controller);
     formData.append("action", action);
 
-    // Flatten nested params for WeFact
     function appendParams(obj, prefix) {
-      for (const [key, value] of Object.entries(obj)) {
-        const paramKey = prefix ? prefix + "[" + key + "]" : key;
+      for (var key in obj) {
+        var value = obj[key];
+        var paramKey = prefix ? prefix + "[" + key + "]" : key;
         if (Array.isArray(value)) {
-          value.forEach((item, i) => {
-            if (typeof item === "object" && item !== null) {
-              appendParams(item, paramKey + "[" + i + "]");
+          for (var i = 0; i < value.length; i++) {
+            if (typeof value[i] === "object" && value[i] !== null) {
+              appendParams(value[i], paramKey + "[" + i + "]");
             } else {
-              formData.append(paramKey + "[" + i + "]", String(item));
+              formData.append(paramKey + "[" + i + "]", String(value[i]));
             }
-          });
+          }
         } else if (typeof value === "object" && value !== null) {
           appendParams(value, paramKey);
         } else {
@@ -53,15 +52,15 @@ module.exports = async function handler(req, res) {
     }
     appendParams(params, "");
 
-    const response = await fetch("https://api.wefact.nl/v2/", {
+    var response = await fetch("https://api.wefact.nl/v2/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData.toString(),
     });
 
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch (e) { data = { status: "error", errors: [text.substring(0, 200)] }; }
+    var text = await response.text();
+    var data;
+    try { data = JSON.parse(text); } catch (e) { data = { status: "error", errors: [text.substring(0, 300)] }; }
 
     return res.status(200).json(data);
   } catch (error) {
