@@ -1,4 +1,7 @@
-module.exports = async function handler(req, res) {
+var https = require("https");
+var querystring = require("querystring");
+
+module.exports = function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -6,64 +9,90 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const apiKey = process.env.WEFACT_API_KEY;
+  var apiKey = process.env.WEFACT_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "WEFACT_API_KEY not set" });
 
-  try {
-    const { controller, action, ...params } = req.body || {};
+  var body = req.body || {};
+  var controller = body.controller;
+  var action = body.action;
 
-    if (!controller || !action) {
-      return res.status(400).json({ error: "controller and action required" });
-    }
+  if (!controller || !action) {
+    return res.status(400).json({ error: "controller and action required" });
+  }
 
-    const allowed = {
-      debtor: ["add", "edit", "show", "list", "searchbyname"],
-      invoice: ["add", "edit", "show", "list", "download"],
-      invoiceline: ["add", "delete"],
-    };
+  var allowed = {
+    debtor: ["add", "edit", "show", "list", "searchbyname"],
+    invoice: ["add", "edit", "show", "list", "download"],
+    invoiceline: ["add", "delete"],
+  };
 
-    if (!allowed[controller] || !allowed[controller].includes(action)) {
-      return res.status(403).json({ error: "Not allowed: " + controller + "/" + action });
-    }
+  if (!allowed[controller] || !allowed[controller].indexOf(action) === -1) {
+    return res.status(403).json({ error: "Not allowed" });
+  }
 
-    const formData = new URLSearchParams();
-    formData.append("api_key", apiKey);
-    formData.append("controller", controller);
-    formData.append("action", action);
+  // Build form data
+  var formParts = [];
+  formParts.push("api_key=" + encodeURIComponent(apiKey));
+  formParts.push("controller=" + encodeURIComponent(controller));
+  formParts.push("action=" + encodeURIComponent(action));
 
-    function appendParams(obj, prefix) {
-      for (var key in obj) {
-        var value = obj[key];
-        var paramKey = prefix ? prefix + "[" + key + "]" : key;
-        if (Array.isArray(value)) {
-          for (var i = 0; i < value.length; i++) {
-            if (typeof value[i] === "object" && value[i] !== null) {
-              appendParams(value[i], paramKey + "[" + i + "]");
-            } else {
-              formData.append(paramKey + "[" + i + "]", String(value[i]));
-            }
+  function addParams(obj, prefix) {
+    if (!obj || typeof obj !== "object") return;
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      if (key === "controller" || key === "action") continue;
+      var value = obj[key];
+      var paramKey = prefix ? prefix + "[" + key + "]" : key;
+      if (Array.isArray(value)) {
+        for (var j = 0; j < value.length; j++) {
+          if (typeof value[j] === "object" && value[j] !== null) {
+            addParams(value[j], paramKey + "[" + j + "]");
+          } else {
+            formParts.push(encodeURIComponent(paramKey + "[" + j + "]") + "=" + encodeURIComponent(String(value[j])));
           }
-        } else if (typeof value === "object" && value !== null) {
-          appendParams(value, paramKey);
-        } else {
-          formData.append(paramKey, String(value));
         }
+      } else if (typeof value === "object" && value !== null) {
+        addParams(value, paramKey);
+      } else {
+        formParts.push(encodeURIComponent(paramKey) + "=" + encodeURIComponent(String(value)));
       }
     }
-    appendParams(params, "");
-
-    var response = await fetch("https://api.wefact.nl/v2/", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData.toString(),
-    });
-
-    var text = await response.text();
-    var data;
-    try { data = JSON.parse(text); } catch (e) { data = { status: "error", errors: [text.substring(0, 300)] }; }
-
-    return res.status(200).json(data);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
   }
+
+  // Add remaining params (exclude controller and action)
+  var params = Object.assign({}, body);
+  delete params.controller;
+  delete params.action;
+  addParams(params, "");
+
+  var postData = formParts.join("&");
+
+  var options = {
+    hostname: "api.wefact.nl",
+    path: "/v2/",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Length": Buffer.byteLength(postData),
+    },
+  };
+
+  var request = https.request(options, function (response) {
+    var chunks = [];
+    response.on("data", function (chunk) { chunks.push(chunk); });
+    response.on("end", function () {
+      var text = Buffer.concat(chunks).toString();
+      var data;
+      try { data = JSON.parse(text); } catch (e) { data = { status: "error", errors: [text.substring(0, 300)] }; }
+      res.status(200).json(data);
+    });
+  });
+
+  request.on("error", function (error) {
+    res.status(500).json({ error: error.message });
+  });
+
+  request.write(postData);
+  request.end();
 };
