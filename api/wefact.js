@@ -1,6 +1,6 @@
 import https from "https";
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -29,6 +29,7 @@ export default function handler(req, res) {
     return res.status(403).json({ error: "Not allowed" });
   }
 
+  // Build form-urlencoded data
   const formParts = [];
   formParts.push("api_key=" + encodeURIComponent(apiKey));
   formParts.push("controller=" + encodeURIComponent(controller));
@@ -63,31 +64,35 @@ export default function handler(req, res) {
 
   const postData = formParts.join("&");
 
-  const options = {
-    hostname: "api.wefact.nl",
-    path: "/v2/",
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Content-Length": Buffer.byteLength(postData),
-    },
-  };
+  // Wrap https.request in a Promise so Vercel waits for it
+  try {
+    const data = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: "api.wefact.nl",
+        path: "/v2/",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Length": Buffer.byteLength(postData),
+        },
+      };
 
-  const request = https.request(options, (response) => {
-    const chunks = [];
-    response.on("data", (chunk) => chunks.push(chunk));
-    response.on("end", () => {
-      const text = Buffer.concat(chunks).toString();
-      let data;
-      try { data = JSON.parse(text); } catch (e) { data = { status: "error", errors: [text.substring(0, 300)] }; }
-      res.status(200).json(data);
+      const request = https.request(options, (response) => {
+        const chunks = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => {
+          const text = Buffer.concat(chunks).toString();
+          try { resolve(JSON.parse(text)); } catch (e) { resolve({ status: "error", errors: [text.substring(0, 300)] }); }
+        });
+      });
+
+      request.on("error", (err) => reject(err));
+      request.write(postData);
+      request.end();
     });
-  });
 
-  request.on("error", (error) => {
-    res.status(500).json({ error: error.message });
-  });
-
-  request.write(postData);
-  request.end();
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 }
