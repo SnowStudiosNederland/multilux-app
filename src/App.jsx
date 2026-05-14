@@ -409,7 +409,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>2. Specificaties</h3>
         <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? gekozenProduct.kleuren : []} />
+          <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? (gekozenProduct.kleuren || []).map(k => ({ value: k.code ? `${k.code} - ${k.naam}` : k.naam, label: k.code ? `${k.code} - ${k.naam}` : k.naam })) : []} />
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
           <Input label="Bedienzijde" value={bedienzijde} onChange={setBedienzijde} options={BEDIENZIJDES} />
         </div>
@@ -1264,24 +1264,52 @@ function AdminProducten({ producten, onRefresh }) {
   const [editing, setEditing] = useState(null);
   const [naam, setNaam] = useState("");
   const [icon, setIcon] = useState("");
-  const [kleuren, setKleuren] = useState("");
+  const [kleuren, setKleuren] = useState([]);
   const [prijsM2, setPrijsM2] = useState("");
-  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren.join(", ")); setPrijsM2(String(p.prijs_per_m2 || 0)); };
-  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren: kleuren.split(",").map(k => k.trim()).filter(Boolean), prijs_per_m2: +prijsM2 || 0 }).eq("id", editing); setEditing(null); onRefresh(); };
+  const [nieuweCode, setNieuweCode] = useState("");
+  const [nieuweNaam, setNieuweNaam] = useState("");
+
+  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren || []); setPrijsM2(String(p.prijs_per_m2 || 0)); };
+  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren, prijs_per_m2: +prijsM2 || 0 }).eq("id", editing); setEditing(null); onRefresh(); };
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
+
+  const addKleur = () => {
+    if (!nieuweNaam.trim()) return;
+    setKleuren(prev => [...prev, { code: nieuweCode.trim(), naam: nieuweNaam.trim() }]);
+    setNieuweCode(""); setNieuweNaam("");
+  };
+  const removeKleur = (idx) => setKleuren(prev => prev.filter((_, i) => i !== idx));
 
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod en de m²-prijzen.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod, kleuren en m²-prijzen.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {producten.map(p => (
           <Card key={p.id} style={{ padding: 20 }}>
             {editing === p.id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "2fr 80px", gap: 12 }}><Input label="Productnaam" value={naam} onChange={setNaam} /><Input label="Icoon" value={icon} onChange={setIcon} /></div>
-                <Input label="Kleuren (kommagescheiden)" value={kleuren} onChange={setKleuren} />
                 <Input label="Prijs per m² (excl. BTW)" type="number" value={prijsM2} onChange={setPrijsM2} suffix="€/m²" placeholder="bijv. 85" />
+
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ml-text-light)", marginBottom: 8 }}>Kleuren</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                    {kleuren.map((k, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>
+                        <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, minWidth: 60 }}>{k.code || "—"}</span>
+                        <span style={{ fontSize: 13 }}>{k.naam}</span>
+                        <button onClick={() => removeKleur(i)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    <Input label="Code" value={nieuweCode} onChange={setNieuweCode} placeholder="bijv. R001" style={{ width: 100 }} />
+                    <Input label="Kleurnaam" value={nieuweNaam} onChange={setNieuweNaam} placeholder="bijv. Wit" style={{ flex: 1 }} />
+                    <Btn small variant="outline" onClick={addKleur}>+ Toevoegen</Btn>
+                  </div>
+                </div>
+
                 <div style={{ display: "flex", gap: 8 }}><Btn small onClick={saveEdit}>Opslaan</Btn><Btn small variant="ghost" onClick={() => setEditing(null)}>Annuleren</Btn></div>
               </div>
             ) : (
@@ -1290,8 +1318,8 @@ function AdminProducten({ producten, onRefresh }) {
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", opacity: p.actief ? 1 : 0.4, flexShrink: 0 }}>{PRODUCT_IMAGES[p.naam] ? <img src={PRODUCT_IMAGES[p.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.icon}</div>}</div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div>
-                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{p.kleuren.join(" · ")}</div>
-                    <div style={{ fontSize: 12, marginTop: 4 }}><Badge color="var(--ml-accent)">€ {(p.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge></div>
+                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{(p.kleuren || []).map(k => k.code ? `${k.code} ${k.naam}` : k.naam).join(" · ")}</div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}><Badge color="var(--ml-accent)">€ {(p.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge> <span style={{ color: "var(--ml-text-light)" }}>{(p.kleuren || []).length} kleuren</span></div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
