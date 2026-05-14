@@ -27,7 +27,7 @@ export async function createDebtor({ naam, email, bedrijf, telefoon }) {
     EmailAddress: email,
   };
   if (bedrijf) params.CompanyName = bedrijf;
-  if (telefoon) params.PhoneNumber = telefoon;
+  if (telefoon) params.MobileNumber = telefoon;
 
   const data = await wefactCall("debtor", "add", params);
   return data.debtor?.Identifier || data.debtor?.DebtorCode || null;

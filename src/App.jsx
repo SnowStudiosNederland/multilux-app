@@ -931,7 +931,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
       for (const d of debtors) {
         const code = d.DebtorCode || d.Identifier || "";
         const email = (d.EmailAddress || "").toLowerCase();
-        const telefoon = d.PhoneNumber || "";
+        const telefoon = d.MobileNumber || d.PhoneNumber || "";
         const bedrijf = d.CompanyName || "";
         if (!email) continue;
         const match = klanten.find(k => k.email?.toLowerCase() === email || k.wefact_code === code);
@@ -957,7 +957,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
     const email = debtor.EmailAddress || "";
     const naam = [debtor.Initials, debtor.SurName].filter(Boolean).join(" ") || debtor.CompanyName || "Klant";
     const bedrijf = debtor.CompanyName || "";
-    const telefoon = debtor.PhoneNumber || "";
+    const telefoon = debtor.MobileNumber || debtor.PhoneNumber || "";
     if (!email) { setResetMsg("Deze debiteur heeft geen e-mailadres in WeFact"); return; }
     setWfCreating(code);
     try {
@@ -1129,7 +1129,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                   <div className="ml-klant-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{naam}{d.CompanyName && d.SurName && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {d.CompanyName}</span>}</div>
-                      <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{d.EmailAddress || "Geen e-mail"}{d.PhoneNumber && <span> · {d.PhoneNumber}</span>}</div>
+                      <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{d.EmailAddress || "Geen e-mail"}{(d.MobileNumber || d.PhoneNumber) && <span> · {d.MobileNumber || d.PhoneNumber}</span>}</div>
                       <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 2, fontFamily: "monospace" }}>{code}</div>
                     </div>
                     <Btn small variant="accent" onClick={() => createPortalFromWeFact(d)} disabled={wfCreating === code || !d.EmailAddress}>
