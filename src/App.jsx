@@ -927,9 +927,30 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
       const debtors = await getAllDebtors();
       setWfDebtors(debtors);
       setWfLoaded(true);
+      // Sync gegevens naar bestaande portaal-accounts
+      for (const d of debtors) {
+        const code = d.DebtorCode || d.Identifier || "";
+        const email = (d.EmailAddress || "").toLowerCase();
+        const telefoon = d.PhoneNumber || "";
+        const bedrijf = d.CompanyName || "";
+        if (!email) continue;
+        const match = klanten.find(k => k.email?.toLowerCase() === email || k.wefact_code === code);
+        if (match) {
+          const updates = {};
+          if (!match.wefact_code && code) updates.wefact_code = code;
+          if (!match.telefoon && telefoon) updates.telefoon = telefoon;
+          if (!match.bedrijf && bedrijf) updates.bedrijf = bedrijf;
+          if (Object.keys(updates).length > 0) {
+            await supabase.from("profielen").update(updates).eq("id", match.id);
+          }
+        }
+      }
+      onRefresh();
     } catch (e) { setResetMsg("WeFact sync mislukt: " + e.message); }
     setWfSyncing(false);
   };
+
+  useEffect(() => { syncWeFact(); }, []);
 
   const createPortalFromWeFact = async (debtor) => {
     const code = debtor.DebtorCode || debtor.Identifier || "";
@@ -1131,7 +1152,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
                   <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
-                  <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 4 }}>Geregistreerd: {fmtDate(k.created_at)}</div>
+                  <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 4 }}>Geregistreerd: {fmtDate(k.created_at)}{k.wefact_code && <span style={{ fontFamily: "monospace" }}> · WeFact: {k.wefact_code}</span>}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="success" onClick={() => onGoedkeuren(k.id)}>Goedkeuren</Btn>
@@ -1175,7 +1196,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
                   <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
-                  <div style={{ marginTop: 6 }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge></div>
+                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge>{k.wefact_code && <span style={{ fontSize: 11, color: "var(--ml-text-light)", fontFamily: "monospace" }}>WeFact: {k.wefact_code}</span>}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="outline" onClick={() => handleEdit(k)}>Bewerken</Btn>
