@@ -59,21 +59,26 @@ export async function getAllDebtors() {
 // ── Facturen ───────────────────────────────────────────────
 
 export async function createInvoice({ debtorCode, orderNr, items, producten }) {
-  // Maak factuur aan
-  const invoiceData = await wefactCall("invoice", "add", {
-    DebtorCode: debtorCode,
-    InvoiceLines: items.map(item => {
-      const prod = producten.find(p => p.id === item.product_id);
-      return {
-        Description: `${prod?.naam || "Product"} - ${item.kleur}\n${item.breedte} × ${item.hoogte} cm | ${item.montage}`,
-        Number: item.aantal,
-        PriceExcl: 0, // Prijs moet later in WeFact worden ingevuld
-      };
-    }),
-    Reference: orderNr,
+  const lines = items.map(item => {
+    const prod = producten.find(p => p.id === item.product_id);
+    return {
+      Description: `${prod?.naam || "Product"} - ${item.kleur} | ${item.breedte} × ${item.hoogte} cm | ${item.montage}`,
+      Number: item.aantal,
+      PriceExcl: 0,
+    };
   });
 
-  return invoiceData.invoice?.InvoiceCode || null;
+  const invoiceData = await wefactCall("invoice", "add", {
+    DebtorCode: debtorCode,
+    InvoiceLines: lines,
+    Reference: orderNr,
+    Comment: "Bestelling via Multilux Klantenportaal",
+  });
+
+  return {
+    code: invoiceData.invoice?.InvoiceCode || null,
+    number: invoiceData.invoice?.InvoiceNumber || null,
+  };
 }
 
 export async function getInvoice(invoiceCode) {

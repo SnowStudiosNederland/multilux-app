@@ -329,8 +329,8 @@ function BestelForm({ profiel, producten, onBesteld }) {
     // WeFact factuur aanmaken
     if (profiel.wefact_code) {
       try {
-        const wfCode = await createInvoice({ debtorCode: profiel.wefact_code, orderNr, items: regels, producten });
-        if (wfCode) await supabase.from("bestellingen").update({ wefact_code: wfCode, wefact_status: "concept" }).eq("order_nr", orderNr);
+        const wfResult = await createInvoice({ debtorCode: profiel.wefact_code, orderNr, items: regels, producten });
+        if (wfResult.code) await supabase.from("bestellingen").update({ wefact_code: wfResult.code, wefact_status: "concept" }).eq("order_nr", orderNr);
       } catch (e) { console.warn("WeFact factuur aanmaken mislukt:", e.message); }
     }
     setLoading(false);
