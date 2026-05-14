@@ -1,7 +1,6 @@
-var https = require("https");
-var querystring = require("querystring");
+import https from "https";
 
-module.exports = function handler(req, res) {
+export default function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -9,47 +8,44 @@ module.exports = function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  var apiKey = process.env.WEFACT_API_KEY;
+  const apiKey = process.env.WEFACT_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "WEFACT_API_KEY not set" });
 
-  var body = req.body || {};
-  var controller = body.controller;
-  var action = body.action;
+  const body = req.body || {};
+  const controller = body.controller;
+  const action = body.action;
 
   if (!controller || !action) {
     return res.status(400).json({ error: "controller and action required" });
   }
 
-  var allowed = {
+  const allowed = {
     debtor: ["add", "edit", "show", "list", "searchbyname"],
     invoice: ["add", "edit", "show", "list", "download"],
     invoiceline: ["add", "delete"],
   };
 
-  if (!allowed[controller] || !allowed[controller].indexOf(action) === -1) {
+  if (!allowed[controller] || !allowed[controller].includes(action)) {
     return res.status(403).json({ error: "Not allowed" });
   }
 
-  // Build form data
-  var formParts = [];
+  const formParts = [];
   formParts.push("api_key=" + encodeURIComponent(apiKey));
   formParts.push("controller=" + encodeURIComponent(controller));
   formParts.push("action=" + encodeURIComponent(action));
 
   function addParams(obj, prefix) {
     if (!obj || typeof obj !== "object") return;
-    var keys = Object.keys(obj);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
+    for (const key of Object.keys(obj)) {
       if (key === "controller" || key === "action") continue;
-      var value = obj[key];
-      var paramKey = prefix ? prefix + "[" + key + "]" : key;
+      const value = obj[key];
+      const paramKey = prefix ? prefix + "[" + key + "]" : key;
       if (Array.isArray(value)) {
-        for (var j = 0; j < value.length; j++) {
-          if (typeof value[j] === "object" && value[j] !== null) {
-            addParams(value[j], paramKey + "[" + j + "]");
+        for (let i = 0; i < value.length; i++) {
+          if (typeof value[i] === "object" && value[i] !== null) {
+            addParams(value[i], paramKey + "[" + i + "]");
           } else {
-            formParts.push(encodeURIComponent(paramKey + "[" + j + "]") + "=" + encodeURIComponent(String(value[j])));
+            formParts.push(encodeURIComponent(paramKey + "[" + i + "]") + "=" + encodeURIComponent(String(value[i])));
           }
         }
       } else if (typeof value === "object" && value !== null) {
@@ -60,15 +56,14 @@ module.exports = function handler(req, res) {
     }
   }
 
-  // Add remaining params (exclude controller and action)
-  var params = Object.assign({}, body);
+  const params = { ...body };
   delete params.controller;
   delete params.action;
   addParams(params, "");
 
-  var postData = formParts.join("&");
+  const postData = formParts.join("&");
 
-  var options = {
+  const options = {
     hostname: "api.wefact.nl",
     path: "/v2/",
     method: "POST",
@@ -78,21 +73,21 @@ module.exports = function handler(req, res) {
     },
   };
 
-  var request = https.request(options, function (response) {
-    var chunks = [];
-    response.on("data", function (chunk) { chunks.push(chunk); });
-    response.on("end", function () {
-      var text = Buffer.concat(chunks).toString();
-      var data;
+  const request = https.request(options, (response) => {
+    const chunks = [];
+    response.on("data", (chunk) => chunks.push(chunk));
+    response.on("end", () => {
+      const text = Buffer.concat(chunks).toString();
+      let data;
       try { data = JSON.parse(text); } catch (e) { data = { status: "error", errors: [text.substring(0, 300)] }; }
       res.status(200).json(data);
     });
   });
 
-  request.on("error", function (error) {
+  request.on("error", (error) => {
     res.status(500).json({ error: error.message });
   });
 
   request.write(postData);
   request.end();
-};
+}
