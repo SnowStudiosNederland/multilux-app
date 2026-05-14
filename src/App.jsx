@@ -46,7 +46,8 @@ const vars = {
 const ML_LOGO = "https://static.wixstatic.com/media/d67b3e_0d151f569ab84b5f96565814d0d8f0fb~mv2.png/v1/fill/w_359,h_83,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20web%20rgb.png";
 const ML_LOGO_STAR = "https://static.wixstatic.com/media/d67b3e_5a5810fc1579421890e6ebb057d958ff~mv2.png/v1/fill/w_100,h_100,al_c,q_85,enc_avif,quality_auto/logo%20web%20ster.png";
 
-const MONTAGETYPES = ["Plafond", "Muur", "In de dag", "Op de dag"];
+const MONTAGETYPES = ["In de dag", "Op de dag"];
+const BEDIENZIJDES = ["Links", "Rechts"];
 const statusKleur = { nieuw: "#E67E22", verwerkt: "#2980B9", gereed: "#27AE60", geannuleerd: "#C0392B" };
 
 const PRODUCT_IMAGES = {
@@ -262,6 +263,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const [breedte, setBreedte] = useState("");
   const [hoogte, setHoogte] = useState("");
   const [montage, setMontage] = useState("");
+  const [bedienzijde, setBedienzijde] = useState("Links");
   const [aantal, setAantal] = useState("1");
   const [opmerking, setOpmerking] = useState("");
   const [errors, setErrors] = useState({});
@@ -272,6 +274,15 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const [maatLabel, setMaatLabel] = useState("");
   const [showSaveMaat, setShowSaveMaat] = useState(false);
   const gekozenProduct = producten.find(p => p.id === productId);
+
+  // Prijsberekening: breedte(mm) × hoogte(mm) → m² × prijs_per_m2
+  const berekenPrijs = (b, h, prod) => {
+    if (!b || !h || !prod?.prijs_per_m2) return 0;
+    const m2 = (b / 1000) * (h / 1000);
+    return Math.round(m2 * prod.prijs_per_m2 * 100) / 100;
+  };
+  const stukprijs = berekenPrijs(+breedte, +hoogte, gekozenProduct);
+  const regelTotaal = regels.reduce((sum, r) => sum + (r.prijs * r.aantal), 0);
 
   useEffect(() => { if (profiel) loadMaten(); }, [profiel]);
 
@@ -300,10 +311,10 @@ function BestelForm({ profiel, producten, onBesteld }) {
     const e = {};
     if (!productId) e.product = "Selecteer een product";
     if (!kleur) e.kleur = "Selecteer een kleur";
-    if (!breedte || breedte < 20) e.breedte = "Min. 20 cm";
-    if (!hoogte || hoogte < 20) e.hoogte = "Min. 20 cm";
-    if (breedte > 400) e.breedte = "Max. 400 cm";
-    if (hoogte > 350) e.hoogte = "Max. 350 cm";
+    if (!breedte || breedte < 200) e.breedte = "Min. 200 mm";
+    if (!hoogte || hoogte < 200) e.hoogte = "Min. 200 mm";
+    if (breedte > 4000) e.breedte = "Max. 4000 mm";
+    if (hoogte > 3500) e.hoogte = "Max. 3500 mm";
     if (!montage) e.montage = "Selecteer montagetype";
     if (!aantal || aantal < 1) e.aantal = "Min. 1";
     setErrors(e);
@@ -313,7 +324,8 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const voegToe = () => {
     if (!validateRegel()) return;
     const prod = producten.find(p => p.id === productId);
-    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, kleur, breedte: +breedte, hoogte: +hoogte, montage, aantal: +aantal }]);
+    const prijs = berekenPrijs(+breedte, +hoogte, prod);
+    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, kleur, breedte: +breedte, hoogte: +hoogte, montage, bedienzijde, aantal: +aantal, prijs }]);
     setBreedte(""); setHoogte(""); setAantal("1"); setErrors({});
   };
 
@@ -323,7 +335,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     if (regels.length === 0) { if (!validateRegel()) return; voegToe(); return; }
     setLoading(true);
     const orderNr = genOrderNr();
-    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, aantal: r.aantal, opmerking }));
+    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, aantal: r.aantal, opmerking }));
     const { error } = await supabase.from("bestellingen").insert(inserts);
     if (error) { setLoading(false); alert("Fout: " + error.message); return; }
     // WeFact factuur aanmaken
@@ -335,7 +347,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     }
     setLoading(false);
     setSucces(true); onBesteld();
-    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setBreedte(""); setHoogte(""); setMontage(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
+    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
   };
 
   if (succes) {
@@ -358,10 +370,13 @@ function BestelForm({ profiel, producten, onBesteld }) {
                   {PRODUCT_IMAGES[r.productNaam] && <img src={PRODUCT_IMAGES[r.productNaam]} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover" }} />}
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{r.productNaam} — {r.kleur}</div>
-                    <div style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{r.breedte} × {r.hoogte} cm · {r.montage} · {r.aantal}×</div>
+                    <div style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{r.breedte} × {r.hoogte} mm · {r.montage} · {r.bedienzijde} · {r.aantal}×</div>
                   </div>
                 </div>
-                <button onClick={() => verwijderRegel(r.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 16, padding: 4 }}>✕</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {r.prijs > 0 && <span style={{ fontWeight: 600, fontSize: 14, color: "var(--ml-primary)" }}>€ {(r.prijs * r.aantal).toFixed(2).replace(".", ",")}</span>}
+                  <button onClick={() => verwijderRegel(r.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 16, padding: 4 }}>✕</button>
+                </div>
               </div>
             ))}
           </div>
@@ -396,6 +411,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
         <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? gekozenProduct.kleuren : []} />
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
+          <Input label="Bedienzijde" value={bedienzijde} onChange={setBedienzijde} options={BEDIENZIJDES} />
         </div>
       </Card>
 
@@ -404,7 +420,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--ml-primary)" }}>3. Maten invoeren</h3>
         </div>
-        <p style={{ fontSize: 13, color: "var(--ml-text-light)", margin: "0 0 16px" }}>Meet de exacte binnenafmetingen van uw raamkozijn in centimeters.</p>
+        <p style={{ fontSize: 13, color: "var(--ml-text-light)", margin: "0 0 16px" }}>Meet de exacte binnenafmetingen van uw raamkozijn in millimeters.</p>
 
         {/* Opgeslagen standaardmaten */}
         {productId && productMaten.length > 0 && (
@@ -427,15 +443,15 @@ function BestelForm({ profiel, producten, onBesteld }) {
           <svg width="200" height="160" viewBox="0 0 200 160">
             <rect x="30" y="10" width="140" height="120" fill="none" stroke="var(--ml-primary)" strokeWidth="2" rx="2" />
             <line x1="30" y1="140" x2="170" y2="140" stroke="var(--ml-accent)" strokeWidth="2" /><line x1="25" y1="140" x2="35" y2="140" stroke="var(--ml-accent)" strokeWidth="2" /><line x1="165" y1="140" x2="175" y2="140" stroke="var(--ml-accent)" strokeWidth="2" />
-            <text x="100" y="154" textAnchor="middle" fill="var(--ml-accent)" fontSize="11" fontWeight="600">Breedte: {breedte || "—"} cm</text>
+            <text x="100" y="154" textAnchor="middle" fill="var(--ml-accent)" fontSize="11" fontWeight="600">Breedte: {breedte || "—"} mm</text>
             <line x1="190" y1="10" x2="190" y2="130" stroke="var(--ml-accent)" strokeWidth="2" /><line x1="185" y1="10" x2="195" y2="10" stroke="var(--ml-accent)" strokeWidth="2" /><line x1="185" y1="130" x2="195" y2="130" stroke="var(--ml-accent)" strokeWidth="2" />
-            <text x="188" y="75" textAnchor="middle" fill="var(--ml-accent)" fontSize="11" fontWeight="600" transform="rotate(90 188 75)">Hoogte: {hoogte || "—"} cm</text>
+            <text x="188" y="75" textAnchor="middle" fill="var(--ml-accent)" fontSize="11" fontWeight="600" transform="rotate(90 188 75)">Hoogte: {hoogte || "—"} mm</text>
             {[0,1,2,3,4,5,6,7].map(i => (<line key={i} x1="36" y1={18 + i * 14} x2="164" y2={18 + i * 14} stroke="var(--ml-primary)" strokeWidth="0.5" opacity="0.25" />))}
           </svg>
         </div>
         <div className="ml-form-grid3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
-          <Input label="Breedte" type="number" value={breedte} onChange={setBreedte} placeholder="bijv. 120" suffix="cm" error={errors.breedte} />
-          <Input label="Hoogte" type="number" value={hoogte} onChange={setHoogte} placeholder="bijv. 160" suffix="cm" error={errors.hoogte} />
+          <Input label="Breedte" type="number" value={breedte} onChange={setBreedte} placeholder="bijv. 1200" suffix="mm" error={errors.breedte} />
+          <Input label="Hoogte" type="number" value={hoogte} onChange={setHoogte} placeholder="bijv. 1600" suffix="mm" error={errors.hoogte} />
           <Input label="Aantal" type="number" value={aantal} onChange={setAantal} placeholder="1" error={errors.aantal} />
         </div>
 
@@ -462,6 +478,29 @@ function BestelForm({ profiel, producten, onBesteld }) {
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>4. Opmerkingen (optioneel)</h3>
         <textarea value={opmerking} onChange={e => setOpmerking(e.target.value)} placeholder="Bijv. speciale montagewensen, draairichting, etc." rows={3} style={{ width: "100%", boxSizing: "border-box", fontFamily: vars.fontFamily, fontSize: 14, padding: "12px 14px", border: "1.5px solid var(--ml-border)", borderRadius: 8, resize: "vertical", outline: "none" }} />
       </Card>
+
+      {/* Prijsindicatie */}
+      {stukprijs > 0 && (
+        <Card style={{ marginBottom: 24, padding: "16px 24px", border: "1.5px solid var(--ml-accent)33" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 14, color: "var(--ml-text-light)" }}>Prijs per stuk ({gekozenProduct?.naam})</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: "var(--ml-primary)" }}>€ {stukprijs.toFixed(2).replace(".", ",")}</span>
+          </div>
+          {+aantal > 1 && <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+            <span style={{ fontSize: 13, color: "var(--ml-text-light)" }}>{aantal}× stuks</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ml-primary)" }}>€ {(stukprijs * +aantal).toFixed(2).replace(".", ",")}</span>
+          </div>}
+        </Card>
+      )}
+
+      {regelTotaal > 0 && (
+        <Card style={{ marginBottom: 24, padding: "16px 24px", background: "var(--ml-primary)", color: "#fff" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 14 }}>Totaal bestelling ({regels.length} {regels.length === 1 ? "item" : "items"})</span>
+            <span style={{ fontSize: 22, fontWeight: 700 }}>€ {regelTotaal.toFixed(2).replace(".", ",")}</span>
+          </div>
+        </Card>
+      )}
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Btn variant="outline" onClick={voegToe} style={{ padding: "14px 24px", fontSize: 14 }}>+ Nog een maat toevoegen</Btn>
@@ -507,11 +546,11 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
     // Tabel
     const tableData = items.map(b => {
       const prod = producten.find(p => p.id === b.product_id);
-      return [prod?.naam || "", b.kleur, `${b.breedte} cm`, `${b.hoogte} cm`, b.montage, b.aantal];
+      return [prod?.naam || "", b.kleur, `${b.breedte} mm`, `${b.hoogte} mm`, b.montage, b.bedienzijde || "Links", b.aantal];
     });
     autoTable(doc, {
       startY: 88,
-      head: [["Product", "Kleur", "Breedte", "Hoogte", "Montage", "Aantal"]],
+      head: [["Product", "Kleur", "Breedte", "Hoogte", "Montage", "Bediening", "Aantal"]],
       body: tableData,
       theme: "grid",
       headStyles: { fillColor: [26, 26, 26], textColor: 255, fontSize: 10 },
@@ -556,7 +595,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
                       <div style={{ width: 42, height: 42, borderRadius: 8, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod?.naam] ? <img src={PRODUCT_IMAGES[prod?.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{prod?.icon || "▦"}</div>}</div>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{prod?.naam || "Product"} — {b.kleur}</div>
-                        <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 1 }}>{b.breedte} × {b.hoogte} cm · {b.montage} · {b.aantal}×</div>
+                        <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 1 }}>{b.breedte} × {b.hoogte} mm · {b.montage} · {b.bedienzijde || "Links"} · {b.aantal}×</div>
                       </div>
                     </div>
                   );
@@ -599,10 +638,10 @@ function StandaardMaten({ profiel, producten }) {
     const e = {};
     if (!productId) e.product = "Selecteer een product";
     if (!label.trim()) e.label = "Geef een naam op";
-    if (!breedte || breedte < 20) e.breedte = "Min. 20 cm";
-    if (!hoogte || hoogte < 20) e.hoogte = "Min. 20 cm";
-    if (breedte > 400) e.breedte = "Max. 400 cm";
-    if (hoogte > 350) e.hoogte = "Max. 350 cm";
+    if (!breedte || breedte < 200) e.breedte = "Min. 200 mm";
+    if (!hoogte || hoogte < 200) e.hoogte = "Min. 200 mm";
+    if (breedte > 4000) e.breedte = "Max. 4000 mm";
+    if (hoogte > 3500) e.hoogte = "Max. 3500 mm";
     if (!montage) e.montage = "Selecteer montagetype";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -661,8 +700,8 @@ function StandaardMaten({ profiel, producten }) {
             <Input label="Naam / Locatie *" value={label} onChange={setLabel} placeholder="bijv. Woonkamer links" error={errors.label} />
           </div>
           <div className="ml-form-grid3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <Input label="Breedte *" type="number" value={breedte} onChange={setBreedte} placeholder="cm" suffix="cm" error={errors.breedte} />
-            <Input label="Hoogte *" type="number" value={hoogte} onChange={setHoogte} placeholder="cm" suffix="cm" error={errors.hoogte} />
+            <Input label="Breedte *" type="number" value={breedte} onChange={setBreedte} placeholder="mm" suffix="mm" error={errors.breedte} />
+            <Input label="Hoogte *" type="number" value={hoogte} onChange={setHoogte} placeholder="mm" suffix="mm" error={errors.hoogte} />
             <Input label="Montagetype *" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
           </div>
           <Btn small onClick={handleAdd}>Opslaan</Btn>
@@ -691,8 +730,8 @@ function StandaardMaten({ profiel, producten }) {
                       <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
                         <Input label="Naam" value={editLabel} onChange={setEditLabel} />
                         <Input label="Montagetype" value={editMontage} onChange={setEditMontage} options={MONTAGETYPES} />
-                        <Input label="Breedte" type="number" value={editBreedte} onChange={setEditBreedte} suffix="cm" />
-                        <Input label="Hoogte" type="number" value={editHoogte} onChange={setEditHoogte} suffix="cm" />
+                        <Input label="Breedte" type="number" value={editBreedte} onChange={setEditBreedte} suffix="mm" />
+                        <Input label="Hoogte" type="number" value={editHoogte} onChange={setEditHoogte} suffix="mm" />
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <Btn small onClick={handleSaveEdit}>Opslaan</Btn>
@@ -704,7 +743,7 @@ function StandaardMaten({ profiel, producten }) {
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{m.label}</div>
                         <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>
-                          {m.breedte} × {m.hoogte} cm · {m.montage}
+                          {m.breedte} × {m.hoogte} mm · {m.montage}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
@@ -767,7 +806,7 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
             <tbody>
               {bestellingen.slice(-8).reverse().map(b => {
                 const prod = producten.find(p => p.id === b.product_id);
-                return (<tr key={b.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}><td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace" }}>{b.order_nr}</td><td style={{ padding: "10px 12px" }}>{prod?.naam} – {b.kleur}</td><td style={{ padding: "10px 12px" }}>{b.breedte}×{b.hoogte} cm</td><td style={{ padding: "10px 12px" }}><Badge color={statusKleur[b.status]}>{b.status}</Badge></td><td style={{ padding: "10px 12px", color: "var(--ml-text-light)" }}>{fmtDate(b.created_at)}</td></tr>);
+                return (<tr key={b.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}><td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace" }}>{b.order_nr}</td><td style={{ padding: "10px 12px" }}>{prod?.naam} – {b.kleur}</td><td style={{ padding: "10px 12px" }}>{b.breedte}×{b.hoogte} mm</td><td style={{ padding: "10px 12px" }}><Badge color={statusKleur[b.status]}>{b.status}</Badge></td><td style={{ padding: "10px 12px", color: "var(--ml-text-light)" }}>{fmtDate(b.created_at)}</td></tr>);
               })}
             </tbody>
           </table>
@@ -856,7 +895,7 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
                     <div style={{ width: 52, height: 52, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod?.naam] ? <img src={PRODUCT_IMAGES[prod?.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{prod?.icon || "▦"}</div>}</div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 15 }}>{prod?.naam} — {b.kleur}</div>
-                      <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 4 }}>{b.breedte} × {b.hoogte} cm · {b.montage} · Aantal: {b.aantal}</div>
+                      <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 4 }}>{b.breedte} × {b.hoogte} mm · {b.montage} · {b.bedienzijde || "Links"} · Aantal: {b.aantal}</div>
                       <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 4 }}>Klant: {b.profielen?.naam || "—"} ({b.profielen?.email || "—"})</div>
                       {b.opmerking && (<div style={{ marginTop: 8, fontSize: 12, color: "var(--ml-text-light)", fontStyle: "italic", padding: "6px 10px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>💬 {b.opmerking}</div>)}
                     </div>
@@ -1226,28 +1265,34 @@ function AdminProducten({ producten, onRefresh }) {
   const [naam, setNaam] = useState("");
   const [icon, setIcon] = useState("");
   const [kleuren, setKleuren] = useState("");
-  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren.join(", ")); };
-  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren: kleuren.split(",").map(k => k.trim()).filter(Boolean) }).eq("id", editing); setEditing(null); onRefresh(); };
+  const [prijsM2, setPrijsM2] = useState("");
+  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren.join(", ")); setPrijsM2(String(p.prijs_per_m2 || 0)); };
+  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren: kleuren.split(",").map(k => k.trim()).filter(Boolean), prijs_per_m2: +prijsM2 || 0 }).eq("id", editing); setEditing(null); onRefresh(); };
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
 
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod en de m²-prijzen.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {producten.map(p => (
           <Card key={p.id} style={{ padding: 20 }}>
             {editing === p.id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 80px", gap: 12 }}><Input label="Productnaam" value={naam} onChange={setNaam} /><Input label="Icoon" value={icon} onChange={setIcon} /></div>
+                <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "2fr 80px", gap: 12 }}><Input label="Productnaam" value={naam} onChange={setNaam} /><Input label="Icoon" value={icon} onChange={setIcon} /></div>
                 <Input label="Kleuren (kommagescheiden)" value={kleuren} onChange={setKleuren} />
+                <Input label="Prijs per m² (excl. BTW)" type="number" value={prijsM2} onChange={setPrijsM2} suffix="€/m²" placeholder="bijv. 85" />
                 <div style={{ display: "flex", gap: 8 }}><Btn small onClick={saveEdit}>Opslaan</Btn><Btn small variant="ghost" onClick={() => setEditing(null)}>Annuleren</Btn></div>
               </div>
             ) : (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", opacity: p.actief ? 1 : 0.4, flexShrink: 0 }}>{PRODUCT_IMAGES[p.naam] ? <img src={PRODUCT_IMAGES[p.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.icon}</div>}</div>
-                  <div><div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div><div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{p.kleuren.join(" · ")}</div></div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div>
+                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{p.kleuren.join(" · ")}</div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}><Badge color="var(--ml-accent)">€ {(p.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge></div>
+                  </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
               </div>

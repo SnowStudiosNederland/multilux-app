@@ -61,10 +61,12 @@ export async function getAllDebtors() {
 export async function createInvoice({ debtorCode, orderNr, items, producten }) {
   const lines = items.map(item => {
     const prod = producten.find(p => p.id === item.product_id);
+    const m2 = (item.breedte / 1000) * (item.hoogte / 1000);
+    const prijs = prod?.prijs_per_m2 ? Math.round(m2 * prod.prijs_per_m2 * 100) / 100 : 0;
     return {
-      Description: `${prod?.naam || "Product"} - ${item.kleur} | ${item.breedte} × ${item.hoogte} cm | ${item.montage}`,
+      Description: `${prod?.naam || "Product"} - ${item.kleur} | ${item.breedte} × ${item.hoogte} mm | ${item.montage} | Bediening: ${item.bedienzijde || "Links"}`,
       Number: item.aantal,
-      PriceExcl: 0,
+      PriceExcl: prijs,
     };
   });
 
