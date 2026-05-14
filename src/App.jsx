@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import { createDebtor, createInvoice, getInvoice, mapInvoiceStatus, getAllDebtors, getDebtor } from "./wefact-helper";
+import { zoekPrijs, getVarianten, getPrijsgroepen, getMatenBereik } from "./prijs-lookup";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;500;600;700&display=swap');`;
 
@@ -259,6 +260,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
 
 function BestelForm({ profiel, producten, onBesteld }) {
   const [productId, setProductId] = useState("");
+  const [variant, setVariant] = useState("");
   const [kleur, setKleur] = useState("");
   const [breedte, setBreedte] = useState("");
   const [hoogte, setHoogte] = useState("");
@@ -275,13 +277,19 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const [showSaveMaat, setShowSaveMaat] = useState(false);
   const gekozenProduct = producten.find(p => p.id === productId);
 
-  // Prijsberekening: breedte(mm) × hoogte(mm) → m² × prijs_per_m2
-  const berekenPrijs = (b, h, prod) => {
-    if (!b || !h || !prod?.prijs_per_m2) return 0;
-    const m2 = (b / 1000) * (h / 1000);
-    return Math.round(m2 * prod.prijs_per_m2 * 100) / 100;
+  // Varianten en prijsgroepen uit prijsmatrix
+  const varianten = gekozenProduct ? getVarianten(gekozenProduct) : [];
+  const gekozenKleur = (gekozenProduct?.kleuren || []).find(k => (k.code ? `${k.code} - ${k.naam}` : k.naam) === kleur);
+  const kleurPrijsgroep = gekozenKleur?.prijsgroep || "";
+  const prijsgroepen = variant ? getPrijsgroepen(gekozenProduct, variant) : [];
+
+  // Prijsberekening via matrix lookup
+  const berekenPrijs = (b, h, prod, var_, pg) => {
+    if (!b || !prod || !var_ || !pg) return { prijs: 0, gevonden: false, info: "" };
+    return zoekPrijs(prod, var_, pg, b, h || b);
   };
-  const stukprijs = berekenPrijs(+breedte, +hoogte, gekozenProduct);
+  const prijsResult = berekenPrijs(+breedte, +hoogte, gekozenProduct, variant, kleurPrijsgroep);
+  const stukprijs = prijsResult.prijs;
   const regelTotaal = regels.reduce((sum, r) => sum + (r.prijs * r.aantal), 0);
 
   useEffect(() => { if (profiel) loadMaten(); }, [profiel]);
@@ -324,8 +332,8 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const voegToe = () => {
     if (!validateRegel()) return;
     const prod = producten.find(p => p.id === productId);
-    const prijs = berekenPrijs(+breedte, +hoogte, prod);
-    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, kleur, breedte: +breedte, hoogte: +hoogte, montage, bedienzijde, aantal: +aantal, prijs }]);
+    const prijs = stukprijs;
+    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, variant, kleur, prijsgroep: kleurPrijsgroep, breedte: +breedte, hoogte: +hoogte, montage, bedienzijde, aantal: +aantal, prijs }]);
     setBreedte(""); setHoogte(""); setAantal("1"); setErrors({});
   };
 
@@ -335,7 +343,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     if (regels.length === 0) { if (!validateRegel()) return; voegToe(); return; }
     setLoading(true);
     const orderNr = genOrderNr();
-    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, aantal: r.aantal, opmerking }));
+    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, aantal: r.aantal, opmerking, variant: r.variant, prijsgroep: r.prijsgroep, stukprijs: r.prijs }));
     const { error } = await supabase.from("bestellingen").insert(inserts);
     if (error) { setLoading(false); alert("Fout: " + error.message); return; }
     // WeFact factuur aanmaken
@@ -347,7 +355,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     }
     setLoading(false);
     setSucces(true); onBesteld();
-    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
+    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setVariant(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
   };
 
   if (succes) {
@@ -390,7 +398,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
           {producten.map(p => {
             const img = PRODUCT_IMAGES[p.naam];
             return (
-              <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); } }} style={{ padding: 0, border: `2.5px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 12, background: p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.5, overflow: "hidden" }}>
+              <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); setVariant(""); const vars = getVarianten(p); if (vars.length === 1) setVariant(vars[0]); } }} style={{ padding: 0, border: `2.5px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 12, background: p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.5, overflow: "hidden" }}>
                 {img && <div style={{ width: "100%", height: 120, overflow: "hidden", position: "relative" }}>
                   <img src={img} alt={p.naam} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {!p.actief && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#fff", fontSize: 11, fontWeight: 700, background: "var(--ml-error)", padding: "4px 10px", borderRadius: 4 }}>Tijdelijk niet leverbaar</span></div>}
@@ -409,10 +417,12 @@ function BestelForm({ profiel, producten, onBesteld }) {
       <Card style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>2. Specificaties</h3>
         <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? (gekozenProduct.kleuren || []).map(k => ({ value: k.code ? `${k.code} - ${k.naam}` : k.naam, label: k.code ? `${k.code} - ${k.naam}` : k.naam })) : []} />
+          {varianten.length > 1 && <Input label="Uitvoering" value={variant} onChange={setVariant} error={errors.variant} options={varianten.map(v => ({ value: v, label: v }))} />}
+          <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? (gekozenProduct.kleuren || []).map(k => ({ value: k.code ? `${k.code} - ${k.naam}` : k.naam, label: `${k.code ? k.code + " - " : ""}${k.naam}${k.prijsgroep ? " (" + k.prijsgroep + ")" : ""}` })) : []} />
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
           <Input label="Bedienzijde" value={bedienzijde} onChange={setBedienzijde} options={BEDIENZIJDES} />
         </div>
+        {kleurPrijsgroep && <div style={{ marginTop: 12, fontSize: 12, color: "var(--ml-text-light)" }}>Prijsgroep: <strong>{kleurPrijsgroep}</strong></div>}
       </Card>
 
       {/* Maten */}
@@ -483,13 +493,21 @@ function BestelForm({ profiel, producten, onBesteld }) {
       {stukprijs > 0 && (
         <Card style={{ marginBottom: 24, padding: "16px 24px", border: "1.5px solid var(--ml-accent)33" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 14, color: "var(--ml-text-light)" }}>Prijs per stuk ({gekozenProduct?.naam})</span>
+            <div>
+              <span style={{ fontSize: 14, color: "var(--ml-text-light)" }}>Prijs per stuk</span>
+              {prijsResult.info && <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 2 }}>{prijsResult.info}</div>}
+            </div>
             <span style={{ fontSize: 20, fontWeight: 700, color: "var(--ml-primary)" }}>€ {stukprijs.toFixed(2).replace(".", ",")}</span>
           </div>
           {+aantal > 1 && <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
             <span style={{ fontSize: 13, color: "var(--ml-text-light)" }}>{aantal}× stuks</span>
             <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ml-primary)" }}>€ {(stukprijs * +aantal).toFixed(2).replace(".", ",")}</span>
           </div>}
+        </Card>
+      )}
+      {breedte && kleur && variant && !prijsResult.gevonden && prijsResult.info && (
+        <Card style={{ marginBottom: 24, padding: "12px 20px", border: "1.5px solid var(--ml-warning)44" }}>
+          <div style={{ fontSize: 13, color: "var(--ml-warning)" }}>⚠ {prijsResult.info}</div>
         </Card>
       )}
 
@@ -1268,6 +1286,7 @@ function AdminProducten({ producten, onRefresh }) {
   const [prijsM2, setPrijsM2] = useState("");
   const [nieuweCode, setNieuweCode] = useState("");
   const [nieuweNaam, setNieuweNaam] = useState("");
+  const [nieuwePG, setNieuwePG] = useState("");
 
   const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren || []); setPrijsM2(String(p.prijs_per_m2 || 0)); };
   const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren, prijs_per_m2: +prijsM2 || 0 }).eq("id", editing); setEditing(null); onRefresh(); };
@@ -1275,8 +1294,8 @@ function AdminProducten({ producten, onRefresh }) {
 
   const addKleur = () => {
     if (!nieuweNaam.trim()) return;
-    setKleuren(prev => [...prev, { code: nieuweCode.trim(), naam: nieuweNaam.trim() }]);
-    setNieuweCode(""); setNieuweNaam("");
+    setKleuren(prev => [...prev, { code: nieuweCode.trim(), naam: nieuweNaam.trim(), prijsgroep: nieuwePG.trim() }]);
+    setNieuweCode(""); setNieuweNaam(""); setNieuwePG("");
   };
   const removeKleur = (idx) => setKleuren(prev => prev.filter((_, i) => i !== idx));
 
@@ -1299,6 +1318,7 @@ function AdminProducten({ producten, onRefresh }) {
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>
                         <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, minWidth: 60 }}>{k.code || "—"}</span>
                         <span style={{ fontSize: 13 }}>{k.naam}</span>
+                        {k.prijsgroep && <Badge color="var(--ml-accent)">{k.prijsgroep}</Badge>}
                         <button onClick={() => removeKleur(i)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 14 }}>✕</button>
                       </div>
                     ))}
@@ -1306,6 +1326,7 @@ function AdminProducten({ producten, onRefresh }) {
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                     <Input label="Code" value={nieuweCode} onChange={setNieuweCode} placeholder="bijv. R001" style={{ width: 100 }} />
                     <Input label="Kleurnaam" value={nieuweNaam} onChange={setNieuweNaam} placeholder="bijv. Wit" style={{ flex: 1 }} />
+                    <Input label="Prijsgroep" value={nieuwePG} onChange={setNieuwePG} placeholder="bijv. PG1" style={{ width: 100 }} />
                     <Btn small variant="outline" onClick={addKleur}>+ Toevoegen</Btn>
                   </div>
                 </div>
