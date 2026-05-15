@@ -267,6 +267,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const [hoogte, setHoogte] = useState("");
   const [montage, setMontage] = useState("");
   const [bedienzijde, setBedienzijde] = useState("Links");
+  const [bediening, setBediening] = useState("");
   const [aantal, setAantal] = useState("1");
   const [opmerking, setOpmerking] = useState("");
   const [errors, setErrors] = useState({});
@@ -278,8 +279,14 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const [showSaveMaat, setShowSaveMaat] = useState(false);
   const gekozenProduct = producten.find(p => p.id === productId);
 
-  // Varianten en prijsgroepen uit prijsmatrix
-  const varianten = gekozenProduct ? getVarianten(gekozenProduct) : [];
+  // Varianten en prijsgroepen uit prijsmatrix (gefilterd op actief)
+  const alleVarianten = gekozenProduct ? getVarianten(gekozenProduct) : [];
+  const variantenConfig = gekozenProduct?.varianten_config || [];
+  const varianten = alleVarianten.filter(v => {
+    const config = variantenConfig.find(vc => vc.naam === v);
+    return !config || config.actief;
+  });
+  const productBedieningen = (gekozenProduct?.bedieningen || []).filter(b => b.actief).map(b => b.naam);
   const gekozenKleur = (gekozenProduct?.kleuren || []).find(k => k.code === kleur);
   const kleurPrijsgroep = gekozenKleur?.prijsgroep || "";
   const prijsgroepen = variant ? getPrijsgroepen(gekozenProduct, variant) : [];
@@ -334,7 +341,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     if (!validateRegel()) return;
     const prod = producten.find(p => p.id === productId);
     const prijs = stukprijs;
-    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, variant, kleur, prijsgroep: kleurPrijsgroep, breedte: +breedte, hoogte: +hoogte, montage, bedienzijde, aantal: +aantal, prijs }]);
+    setRegels(prev => [...prev, { id: Date.now(), product_id: productId, productNaam: prod?.naam, variant, kleur, prijsgroep: kleurPrijsgroep, breedte: +breedte, hoogte: +hoogte, montage, bedienzijde, bediening, aantal: +aantal, prijs }]);
     setBreedte(""); setHoogte(""); setAantal("1"); setErrors({});
   };
 
@@ -344,7 +351,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     if (regels.length === 0) { if (!validateRegel()) return; voegToe(); return; }
     setLoading(true);
     const orderNr = genOrderNr();
-    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, aantal: r.aantal, opmerking, variant: r.variant, prijsgroep: r.prijsgroep, stukprijs: r.prijs }));
+    const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, bediening: r.bediening, aantal: r.aantal, opmerking, variant: r.variant, prijsgroep: r.prijsgroep, stukprijs: r.prijs }));
     const { error } = await supabase.from("bestellingen").insert(inserts);
     if (error) { setLoading(false); alert("Fout: " + error.message); return; }
     // WeFact factuur aanmaken
@@ -356,7 +363,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
     }
     setLoading(false);
     setSucces(true); onBesteld();
-    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setVariant(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
+    setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setVariant(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setBediening(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
   };
 
   if (succes) {
@@ -399,7 +406,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
           {producten.map(p => {
             const img = PRODUCT_IMAGES[p.naam];
             return (
-              <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); setVariant(""); const vars = getVarianten(p); if (vars.length === 1) setVariant(vars[0]); } }} style={{ padding: 0, border: `2.5px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 12, background: p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.5, overflow: "hidden" }}>
+              <button key={p.id} onClick={() => { if (p.actief) { setProductId(p.id); setKleur(""); setVariant(""); setBedienzijde(""); const allV = getVarianten(p); const vc = p.varianten_config || []; const actV = allV.filter(v => { const c = vc.find(x => x.naam === v); return !c || c.actief; }); if (actV.length === 1) setVariant(actV[0]); const actB = (p.bedieningen || []).filter(b => b.actief); if (actB.length === 1) setBedienzijde(actB[0].naam); } }} style={{ padding: 0, border: `2.5px solid ${productId === p.id && p.actief ? "var(--ml-primary)" : "var(--ml-border)"}`, borderRadius: 12, background: p.actief ? "#fff" : "#f5f5f5", cursor: p.actief ? "pointer" : "not-allowed", textAlign: "center", transition: "all .15s", fontFamily: vars.fontFamily, opacity: p.actief ? 1 : 0.5, overflow: "hidden" }}>
                 {img && <div style={{ width: "100%", height: 120, overflow: "hidden", position: "relative" }}>
                   <img src={img} alt={p.naam} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {!p.actief && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#fff", fontSize: 11, fontWeight: 700, background: "var(--ml-error)", padding: "4px 10px", borderRadius: 4 }}>Tijdelijk niet leverbaar</span></div>}
@@ -423,6 +430,11 @@ function BestelForm({ profiel, producten, onBesteld }) {
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
           <Input label="Bedienzijde" value={bedienzijde} onChange={setBedienzijde} options={BEDIENZIJDES} />
         </div>
+        {productBedieningen.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <Input label="Bediening" value={bediening} onChange={setBediening} options={productBedieningen} />
+          </div>
+        )}
         {kleurPrijsgroep && <div style={{ marginTop: 12, fontSize: 12, color: "var(--ml-text-light)" }}>Prijsgroep: <strong>{kleurPrijsgroep}</strong></div>}
       </Card>
 
@@ -1284,11 +1296,38 @@ function AdminProducten({ producten, onRefresh }) {
   const [naam, setNaam] = useState("");
   const [icon, setIcon] = useState("");
   const [kleuren, setKleuren] = useState([]);
+  const [variantenConfig, setVariantenConfig] = useState([]);
+  const [bedieningen, setBedieningen] = useState([]);
   const [nieuweCode, setNieuweCode] = useState("");
   const [nieuwePG, setNieuwePG] = useState("");
+  const [nieuweBediening, setNieuweBediening] = useState("");
 
-  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren || []); };
-  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren }).eq("id", editing); setEditing(null); onRefresh(); };
+  const startEdit = (p) => {
+    setEditing(p.id);
+    setNaam(p.naam);
+    setIcon(p.icon);
+    setKleuren(p.kleuren || []);
+    setBedieningen(p.bedieningen || []);
+    // Varianten uit prijsmatrix halen en mergen met config
+    const matrixVarianten = (p.prijsmatrix?.varianten || []).map(v => v.naam);
+    const bestaandeConfig = p.varianten_config || [];
+    const merged = matrixVarianten.map(vn => {
+      const existing = bestaandeConfig.find(vc => vc.naam === vn);
+      return existing || { naam: vn, actief: true };
+    });
+    // Voeg ook handmatig toegevoegde varianten toe die niet in de matrix staan
+    bestaandeConfig.forEach(vc => {
+      if (!merged.find(m => m.naam === vc.naam)) merged.push(vc);
+    });
+    setVariantenConfig(merged);
+  };
+
+  const saveEdit = async () => {
+    await supabase.from("producten").update({ naam, icon, kleuren, varianten_config: variantenConfig, bedieningen }).eq("id", editing);
+    setEditing(null);
+    onRefresh();
+  };
+
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
 
   const addKleur = () => {
@@ -1298,34 +1337,87 @@ function AdminProducten({ producten, onRefresh }) {
   };
   const removeKleur = (idx) => setKleuren(prev => prev.filter((_, i) => i !== idx));
 
+  const toggleVariant = (idx) => {
+    setVariantenConfig(prev => prev.map((v, i) => i === idx ? { ...v, actief: !v.actief } : v));
+  };
+
+  const addBediening = () => {
+    if (!nieuweBediening.trim()) return;
+    setBedieningen(prev => [...prev, { naam: nieuweBediening.trim(), actief: true }]);
+    setNieuweBediening("");
+  };
+  const toggleBediening = (idx) => {
+    setBedieningen(prev => prev.map((b, i) => i === idx ? { ...b, actief: !b.actief } : b));
+  };
+  const removeBediening = (idx) => setBedieningen(prev => prev.filter((_, i) => i !== idx));
+
+  const actieveVarianten = (p) => (p.varianten_config || []).filter(v => v.actief).length;
+  const actieveBedieningen = (p) => (p.bedieningen || []).filter(b => b.actief).length;
+
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod en kleuren.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer producten, kleuren, varianten en bedieningen.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {producten.map(p => (
           <Card key={p.id} style={{ padding: 20 }}>
             {editing === p.id ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                 <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "2fr 80px", gap: 12 }}><Input label="Productnaam" value={naam} onChange={setNaam} /><Input label="Icoon" value={icon} onChange={setIcon} /></div>
 
+                {/* Kleuren */}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ml-text-light)", marginBottom: 8 }}>Kleuren</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ml-text)", marginBottom: 10 }}>Kleuren</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
                     {kleuren.map((k, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>
                         <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, minWidth: 60 }}>{k.code || "—"}</span>
-                        
                         {k.prijsgroep && <Badge color="var(--ml-accent)">{k.prijsgroep}</Badge>}
                         <button onClick={() => removeKleur(i)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 14 }}>✕</button>
                       </div>
                     ))}
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                    <Input label="Code" value={nieuweCode} onChange={setNieuweCode} placeholder="bijv. R001" style={{ width: 100 }} />
-                    
-                    <Input label="Prijsgroep" value={nieuwePG} onChange={setNieuwePG} placeholder="bijv. PG1" style={{ width: 100 }} />
+                    <Input label="Code" value={nieuweCode} onChange={setNieuweCode} placeholder="bijv. R001" style={{ width: 120 }} />
+                    <Input label="Prijsgroep" value={nieuwePG} onChange={setNieuwePG} placeholder="bijv. PG1" style={{ width: 120 }} />
                     <Btn small variant="outline" onClick={addKleur}>+ Toevoegen</Btn>
+                  </div>
+                </div>
+
+                {/* Varianten */}
+                {variantenConfig.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ml-text)", marginBottom: 10 }}>Varianten / Uitvoeringen</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {variantenConfig.map((v, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: v.actief ? "var(--ml-surface-alt)" : "#f5f5f5", borderRadius: 8, opacity: v.actief ? 1 : 0.5 }}>
+                          <span style={{ fontSize: 13, flex: 1 }}>{v.naam}</span>
+                          <Btn small variant={v.actief ? "ghost" : "accent"} onClick={() => toggleVariant(i)} style={{ fontSize: 11, padding: "4px 10px" }}>
+                            {v.actief ? "Deactiveer" : "Activeer"}
+                          </Btn>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bedieningen */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ml-text)", marginBottom: 10 }}>Bedieningen</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                    {bedieningen.map((b, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: b.actief ? "var(--ml-surface-alt)" : "#f5f5f5", borderRadius: 8, opacity: b.actief ? 1 : 0.5 }}>
+                        <span style={{ fontSize: 13, flex: 1 }}>{b.naam}</span>
+                        <Btn small variant={b.actief ? "ghost" : "accent"} onClick={() => toggleBediening(i)} style={{ fontSize: 11, padding: "4px 10px" }}>
+                          {b.actief ? "Deactiveer" : "Activeer"}
+                        </Btn>
+                        <button onClick={() => removeBediening(i)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                    <Input label="Bediening toevoegen" value={nieuweBediening} onChange={setNieuweBediening} placeholder="bijv. Ketting, Elektrisch" style={{ flex: 1 }} />
+                    <Btn small variant="outline" onClick={addBediening}>+ Toevoegen</Btn>
                   </div>
                 </div>
 
@@ -1338,7 +1430,11 @@ function AdminProducten({ producten, onRefresh }) {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{(p.kleuren || []).map(k => k.code).join(" · ")}</div>
-                    <div style={{ fontSize: 12, marginTop: 4 }}><span style={{ color: "var(--ml-text-light)" }}>{(p.kleuren || []).length} kleuren</span></div>
+                    <div style={{ fontSize: 12, marginTop: 4, display: "flex", gap: 12, color: "var(--ml-text-light)" }}>
+                      <span>{(p.kleuren || []).length} kleuren</span>
+                      {actieveVarianten(p) > 0 && <span>· {actieveVarianten(p)} varianten</span>}
+                      {actieveBedieningen(p) > 0 && <span>· {actieveBedieningen(p)} bedieningen</span>}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
