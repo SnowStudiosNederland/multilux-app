@@ -1284,13 +1284,11 @@ function AdminProducten({ producten, onRefresh }) {
   const [naam, setNaam] = useState("");
   const [icon, setIcon] = useState("");
   const [kleuren, setKleuren] = useState([]);
-  const [prijsM2, setPrijsM2] = useState("");
   const [nieuweCode, setNieuweCode] = useState("");
-  
   const [nieuwePG, setNieuwePG] = useState("");
 
-  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren || []); setPrijsM2(String(p.prijs_per_m2 || 0)); };
-  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren, prijs_per_m2: +prijsM2 || 0 }).eq("id", editing); setEditing(null); onRefresh(); };
+  const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren || []); };
+  const saveEdit = async () => { await supabase.from("producten").update({ naam, icon, kleuren }).eq("id", editing); setEditing(null); onRefresh(); };
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
 
   const addKleur = () => {
@@ -1303,14 +1301,13 @@ function AdminProducten({ producten, onRefresh }) {
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Producten</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod, kleuren en m²-prijzen.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer het productaanbod en kleuren.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {producten.map(p => (
           <Card key={p.id} style={{ padding: 20 }}>
             {editing === p.id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "2fr 80px", gap: 12 }}><Input label="Productnaam" value={naam} onChange={setNaam} /><Input label="Icoon" value={icon} onChange={setIcon} /></div>
-                <Input label="Prijs per m² (excl. BTW)" type="number" value={prijsM2} onChange={setPrijsM2} suffix="€/m²" placeholder="bijv. 85" />
 
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ml-text-light)", marginBottom: 8 }}>Kleuren</div>
@@ -1341,7 +1338,7 @@ function AdminProducten({ producten, onRefresh }) {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{(p.kleuren || []).map(k => k.code).join(" · ")}</div>
-                    <div style={{ fontSize: 12, marginTop: 4 }}><Badge color="var(--ml-accent)">€ {(p.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge> <span style={{ color: "var(--ml-text-light)" }}>{(p.kleuren || []).length} kleuren</span></div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}><span style={{ color: "var(--ml-text-light)" }}>{(p.kleuren || []).length} kleuren</span></div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
