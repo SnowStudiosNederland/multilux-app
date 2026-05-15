@@ -357,7 +357,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
         const wfResult = await createInvoice({ debtorCode: wfCode, orderNr, items: regels, producten });
         if (wfResult.code) await supabase.from("bestellingen").update({ wefact_code: wfResult.code, wefact_status: "concept" }).eq("order_nr", orderNr);
       }
-    } catch (e) { console.warn("WeFact koppeling mislukt:", e.message); }
+    } catch (e) { alert("WeFact fout: " + e.message); }
     setLoading(false);
     setSucces(true); onBesteld();
     setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setVariant(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setBediening(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
