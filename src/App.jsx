@@ -1486,6 +1486,47 @@ function AdminPrijzen({ producten, onRefresh }) {
   );
 }
 
+function PasswordResetScreen({ onDone }) {
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleReset = async () => {
+    setErr("");
+    if (newPw.length < 6) { setErr("Wachtwoord moet minimaal 6 tekens zijn"); return; }
+    if (newPw !== confirmPw) { setErr("Wachtwoorden komen niet overeen"); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    setLoading(false);
+    if (error) { setErr("Fout: " + error.message); return; }
+    setSuccess(true);
+    setTimeout(() => onDone(), 2000);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F5F2EE", fontFamily: vars.fontFamily }}>
+      <Card style={{ maxWidth: 420, width: "100%", padding: 40, margin: 20 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>Nieuw wachtwoord instellen</h2>
+        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Kies een nieuw wachtwoord voor uw account.</p>
+        {success ? (
+          <div style={{ padding: "16px 20px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 14, fontWeight: 500 }}>✓ Wachtwoord succesvol gewijzigd! U wordt doorgestuurd...</div>
+        ) : (
+          <>
+            {err && <div style={{ marginBottom: 16, padding: "10px 16px", borderRadius: 8, background: "var(--ml-error)15", color: "var(--ml-error)", fontSize: 13 }}>{err}</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <Input label="Nieuw wachtwoord" type="password" value={newPw} onChange={setNewPw} placeholder="Minimaal 6 tekens" />
+              <Input label="Bevestig wachtwoord" type="password" value={confirmPw} onChange={setConfirmPw} placeholder="Herhaal wachtwoord" />
+              <Btn onClick={handleReset} disabled={loading}>{loading ? "Bezig..." : "Wachtwoord wijzigen"}</Btn>
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 export default function MultiluxApp() {
   const [session, setSession] = useState(null);
   const [profiel, setProfiel] = useState(null);
@@ -1494,6 +1535,7 @@ export default function MultiluxApp() {
   const [bestellingen, setBestellingen] = useState([]);
   const [klanten, setKlanten] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
   const aantalWachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin" && k.rol !== "it-beheerder").length;
   const isMobile = useIsMobile();
 
@@ -1501,8 +1543,9 @@ export default function MultiluxApp() {
     supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) loadProfiel(session.user.id, true); else setLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (_event === "SIGNED_IN") loadProfiel(session.user.id, true);
-      else if (_event === "SIGNED_OUT") { setProfiel(null); setPagina(""); setLoading(false); }
+      if (_event === "PASSWORD_RECOVERY") { setShowPasswordReset(true); if (session) loadProfiel(session.user.id, true); }
+      else if (_event === "SIGNED_IN") loadProfiel(session.user.id, true);
+      else if (_event === "SIGNED_OUT") { setProfiel(null); setPagina(""); setLoading(false); setShowPasswordReset(false); }
       else if (session && !profiel) loadProfiel(session.user.id, true);
     });
     return () => subscription.unsubscribe();
@@ -1555,6 +1598,7 @@ export default function MultiluxApp() {
   const handleLogout = async () => { await supabase.auth.signOut(); setProfiel(null); setSession(null); };
 
   if (loading) return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}><Loader /></div></>);
+  if (showPasswordReset && session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><PasswordResetScreen onDone={() => setShowPasswordReset(false)} /></div></>);
   if (!session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><LoginPage onLogin={() => {}} /></div></>);
   if (profiel && !profiel.goedgekeurd && profiel.rol !== "admin" && profiel.rol !== "it-beheerder") return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><WachtScherm profiel={profiel} onLogout={handleLogout} /></div></>);
 
