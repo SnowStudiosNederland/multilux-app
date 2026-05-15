@@ -16,7 +16,17 @@ async function wefactCall(controller, action, params = {}) {
 
 // ── Debiteuren ─────────────────────────────────────────────
 
-export async function createDebtor({ naam, email, bedrijf, telefoon }) {
+export async function findOrCreateDebtor({ naam, email, bedrijf, telefoon }) {
+  // Eerst zoeken op e-mail
+  try {
+    const searchData = await wefactCall("debtor", "list", { searchat: "EmailAddress", searchfor: email });
+    const debtors = searchData.debtors || [];
+    if (debtors.length > 0) {
+      return debtors[0].DebtorCode || debtors[0].Identifier || null;
+    }
+  } catch (e) { /* zoeken mislukt, probeer aanmaken */ }
+
+  // Niet gevonden, nieuwe debiteur aanmaken
   const parts = naam.trim().split(" ");
   const voornaam = parts[0] || "";
   const achternaam = parts.slice(1).join(" ") || naam;
@@ -31,6 +41,11 @@ export async function createDebtor({ naam, email, bedrijf, telefoon }) {
 
   const data = await wefactCall("debtor", "add", params);
   return data.debtor?.Identifier || data.debtor?.DebtorCode || null;
+}
+
+// Legacy alias
+export async function createDebtor(params) {
+  return findOrCreateDebtor(params);
 }
 
 export async function getDebtor(debtorCode) {
