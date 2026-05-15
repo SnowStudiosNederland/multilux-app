@@ -342,13 +342,22 @@ function BestelForm({ profiel, producten, onBesteld }) {
     const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, bediening: r.bediening, aantal: r.aantal, opmerking, variant: r.variant, prijsgroep: r.prijsgroep, stukprijs: r.prijs }));
     const { error } = await supabase.from("bestellingen").insert(inserts);
     if (error) { setLoading(false); alert("Fout: " + error.message); return; }
-    // WeFact factuur aanmaken
-    if (profiel.wefact_code) {
-      try {
-        const wfResult = await createInvoice({ debtorCode: profiel.wefact_code, orderNr, items: regels, producten });
+    // WeFact: automatisch debiteur aanmaken als die er nog niet is, dan factuur
+    try {
+      let wfCode = profiel.wefact_code;
+      if (!wfCode) {
+        // Debiteur aanmaken in WeFact
+        wfCode = await createDebtor({ naam: profiel.naam, email: profiel.email, bedrijf: profiel.bedrijf, telefoon: profiel.telefoon });
+        if (wfCode) {
+          await supabase.from("profielen").update({ wefact_code: wfCode }).eq("id", profiel.id);
+          profiel.wefact_code = wfCode;
+        }
+      }
+      if (wfCode) {
+        const wfResult = await createInvoice({ debtorCode: wfCode, orderNr, items: regels, producten });
         if (wfResult.code) await supabase.from("bestellingen").update({ wefact_code: wfResult.code, wefact_status: "concept" }).eq("order_nr", orderNr);
-      } catch (e) { console.warn("WeFact factuur aanmaken mislukt:", e.message); }
-    }
+      }
+    } catch (e) { console.warn("WeFact koppeling mislukt:", e.message); }
     setLoading(false);
     setSucces(true); onBesteld();
     setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setVariant(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setBediening(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
