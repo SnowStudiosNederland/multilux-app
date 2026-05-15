@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { createDebtor, createInvoice, getInvoice, mapInvoiceStatus, getAllDebtors, getDebtor } from "./wefact-helper";
+import { createDebtor, createInvoice, getInvoice, mapInvoiceStatus, getAllDebtors, getDebtor, downloadInvoicePDF } from "./wefact-helper";
 import { zoekPrijs, getVarianten, getPrijsgroepen, getMatenBereik } from "./prijs-lookup";
 
 const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;500;600;700&display=swap');`;
@@ -94,21 +94,6 @@ function Loader() {
   return (<div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: 60 }}><div style={{ width: 36, height: 36, border: "3px solid var(--ml-border)", borderTopColor: "var(--ml-primary)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div>);
 }
 
-function WachtScherm({ profiel, onLogout }) {
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}>
-      <Card style={{ maxWidth: 480, textAlign: "center", padding: "60px 48px" }}>
-        <div style={{ width: 80, height: 80, borderRadius: "50%", background: "var(--ml-warning)15", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 36 }}>⏳</div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 12px" }}>Account in afwachting</h2>
-        <p style={{ fontSize: 15, color: "var(--ml-text-light)", lineHeight: 1.7, margin: "0 0 8px" }}>Bedankt voor uw registratie, <strong>{profiel.naam}</strong>.</p>
-        <p style={{ fontSize: 14, color: "var(--ml-text-light)", lineHeight: 1.7, margin: "0 0 32px" }}>Uw account moet nog worden goedgekeurd door een beheerder. U ontvangt een bericht zodra uw account is geactiveerd.</p>
-        <div style={{ padding: "16px 20px", background: "var(--ml-surface-alt)", borderRadius: 10, fontSize: 13, color: "var(--ml-text-light)", marginBottom: 28 }}><strong>Geregistreerd als:</strong><br />{profiel.email}</div>
-        <Btn variant="ghost" onClick={onLogout}>Uitloggen</Btn>
-      </Card>
-    </div>
-  );
-}
-
 function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login"); // login | register | forgot
   const [email, setEmail] = useState("");
@@ -181,12 +166,12 @@ function LoginPage({ onLogin }) {
   );
 }
 
-function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile }) {
+function Sidebar({ profiel, actief, onNav, onLogout, isMobile }) {
   const [open, setOpen] = useState(false);
   const isAdmin = profiel?.rol === "admin" || profiel?.rol === "it-beheerder";
   const rolLabel = (rol) => rol === "admin" ? "Beheerder" : rol === "it-beheerder" ? "IT-Beheerder" : rol === "klant" ? "Klant" : rol;
   const items = isAdmin
-    ? [{ id: "dashboard", label: "Dashboard", icon: "◫" }, { id: "bestellingen", label: "Bestellingen", icon: "☰" }, { id: "klanten", label: "Klanten", icon: "◉", badge: aantalWachtend }, { id: "producten", label: "Producten", icon: "▦" }, { id: "prijzen", label: "Prijzen", icon: "€" }]
+    ? [{ id: "dashboard", label: "Dashboard", icon: "◫" }, { id: "bestellingen", label: "Bestellingen", icon: "☰" }, { id: "klanten", label: "Klanten", icon: "◉" }, { id: "producten", label: "Producten", icon: "▦" }, { id: "prijzen", label: "Prijzen", icon: "€" }]
     : [{ id: "bestellen", label: "Nieuwe Bestelling", icon: "＋" }, { id: "mijn-bestellingen", label: "Mijn Bestellingen", icon: "☰" }, { id: "standaardmaten", label: "Mijn Maten", icon: "◳" }];
 
   const handleNav = (id) => { onNav(id); if (isMobile) setOpen(false); };
@@ -553,6 +538,24 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
   const orderList = Object.entries(orders).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
 
   const downloadPDF = async (orderNr, items) => {
+    // Probeer eerst de factuur uit WeFact te downloaden
+    const wefactCode = items[0]?.wefact_code;
+    if (wefactCode) {
+      try {
+        const base64PDF = await downloadInvoicePDF(wefactCode);
+        const byteChars = atob(base64PDF);
+        const byteArray = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([byteArray], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `Factuur-${orderNr}.pdf`; a.click();
+        URL.revokeObjectURL(url);
+        return;
+      } catch (e) { console.warn("WeFact PDF niet beschikbaar, lokale PDF wordt gegenereerd:", e.message); }
+    }
+
+    // Fallback: lokale PDF genereren
     const { default: jsPDF } = await import("jspdf");
     const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
@@ -796,7 +799,7 @@ function StandaardMaten({ profiel, producten }) {
   );
 }
 
-function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
+function AdminDashboard({ bestellingen, producten }) {
   const stats = { totaal: bestellingen.length, nieuw: bestellingen.filter(b => b.status === "nieuw").length, verwerkt: bestellingen.filter(b => b.status === "verwerkt").length, gereed: bestellingen.filter(b => b.status === "gereed").length };
   const statCards = [
     { label: "Totaal", waarde: stats.totaal, kleur: "var(--ml-primary)", icon: "☰" },
@@ -808,17 +811,6 @@ function AdminDashboard({ bestellingen, producten, aantalWachtend }) {
     <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Dashboard</h1>
       <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van alle bestellingen</p>
-      {aantalWachtend > 0 && (
-        <Card style={{ marginBottom: 20, padding: "16px 24px", border: "1.5px solid var(--ml-warning)44" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 22 }}>⚠️</span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ml-text)" }}>{aantalWachtend} account{aantalWachtend > 1 ? "s" : ""} wacht{aantalWachtend === 1 ? "" : "en"} op goedkeuring</div>
-              <div style={{ fontSize: 13, color: "var(--ml-text-light)" }}>Ga naar Klanten om accounts te beoordelen.</div>
-            </div>
-          </div>
-        </Card>
-      )}
       <div className="ml-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
         {statCards.map(s => (
           <Card key={s.label} style={{ padding: 24 }}>
@@ -953,7 +945,7 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
   );
 }
 
-function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
+function AdminKlanten({ klanten, onRefresh }) {
   const [showForm, setShowForm] = useState(false);
   const [formNaam, setFormNaam] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -979,8 +971,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
   const zoekLower = zoek.toLowerCase();
   const filterKlant = (k) => !zoek || [k.naam, k.email, k.telefoon, k.bedrijf].filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
-  const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin" && k.rol !== "it-beheerder").filter(filterKlant);
-  const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin" || k.rol === "it-beheerder").filter(filterKlant);
+  const alleKlanten = klanten.filter(filterKlant);
 
   // WeFact debiteuren die nog geen portaal-account hebben
   const gekoppeldeEmails = klanten.map(k => k.email?.toLowerCase());
@@ -1223,40 +1214,9 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
         )}
       </div>
 
-      {wachtend.length > 0 && (<>
-        <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-warning)" }}>⏳ Wachtend op goedkeuring ({wachtend.length})</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 36 }}>
-          {wachtend.map(k => (
-            <Card key={k.id} style={{ padding: 20, border: "1.5px solid var(--ml-warning)33" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
-                  <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
-                  <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 4 }}>Geregistreerd: {fmtDate(k.created_at)}{k.wefact_code && <span style={{ fontFamily: "monospace" }}> · WeFact: {k.wefact_code}</span>}</div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn small variant="success" onClick={() => onGoedkeuren(k.id)}>Goedkeuren</Btn>
-                  <Btn small variant="danger" onClick={() => onAfwijzen(k.id)}>Afwijzen</Btn>
-                  <Btn small variant="ghost" onClick={() => setDeleteConfirm(k.id)} style={{ color: "var(--ml-error)" }}>✕</Btn>
-                </div>
-              </div>
-              {deleteConfirm === k.id && (
-                <div style={{ marginTop: 12, padding: "12px 16px", background: "var(--ml-error)08", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, color: "var(--ml-error)", fontWeight: 500 }}>Account en bestellingen definitief verwijderen?</span>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <Btn small variant="danger" onClick={() => handleDelete(k.id)}>Ja, verwijder</Btn>
-                    <Btn small variant="ghost" onClick={() => setDeleteConfirm(null)}>Annuleren</Btn>
-                  </div>
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
-      </>)}
-
-      <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Actieve accounts ({goedgekeurd.length})</h3>
+      <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Accounts ({alleKlanten.length})</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {goedgekeurd.map(k => (
+        {alleKlanten.map(k => (
           <Card key={k.id} style={{ padding: 20 }}>
             {editing === k.id ? (
               <div>
@@ -1652,7 +1612,7 @@ export default function MultiluxApp() {
   const [klanten, setKlanten] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const aantalWachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin" && k.rol !== "it-beheerder").length;
+
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -1686,7 +1646,7 @@ export default function MultiluxApp() {
   const loadProfiel = async (userId, setDefaultPage) => {
     const { data } = await supabase.from("profielen").select("*").eq("id", userId).single();
     setProfiel(data);
-    if (data?.goedgekeurd || data?.rol === "admin" || data?.rol === "it-beheerder") {
+    if (data) {
       if (setDefaultPage) setPagina(prev => prev || ((data?.rol === "admin" || data?.rol === "it-beheerder") ? "dashboard" : "bestellen"));
       await loadProducten();
       await loadBestellingen(data);
@@ -1714,35 +1674,24 @@ export default function MultiluxApp() {
     }
     await loadBestellingen(profiel);
   };
-  const onGoedkeuren = async (id) => {
-    await supabase.from("profielen").update({ goedgekeurd: true }).eq("id", id);
-    // WeFact debiteur aanmaken
-    try {
-      const { data: klant } = await supabase.from("profielen").select("*").eq("id", id).single();
-      if (klant) {
-        const wefactCode = await createDebtor({ naam: klant.naam, email: klant.email, bedrijf: klant.bedrijf, telefoon: klant.telefoon });
-        if (wefactCode) await supabase.from("profielen").update({ wefact_code: wefactCode }).eq("id", id);
-      }
-    } catch (e) { console.warn("WeFact debiteur aanmaken mislukt:", e.message); }
-    await loadKlanten();
-  };
-  const onAfwijzen = async (id) => { await supabase.from("profielen").update({ goedgekeurd: false }).eq("id", id); await loadKlanten(); };
+
+
   const handleLogout = async () => { await supabase.auth.signOut(); setProfiel(null); setSession(null); };
 
   if (loading) return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}><Loader /></div></>);
   if (showPasswordReset && session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><PasswordResetScreen onDone={() => setShowPasswordReset(false)} /></div></>);
   if (!session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><LoginPage onLogin={() => {}} /></div></>);
-  if (profiel && !profiel.goedgekeurd && profiel.rol !== "admin" && profiel.rol !== "it-beheerder") return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><WachtScherm profiel={profiel} onLogout={handleLogout} /></div></>);
+
 
   const renderPage = () => {
     if (profiel?.rol === "admin" || profiel?.rol === "it-beheerder") {
       switch (pagina) {
-        case "dashboard": return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
+        case "dashboard": return <AdminDashboard bestellingen={bestellingen} producten={producten} />;
         case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} producten={producten} onStatusUpdate={onStatusUpdate} onSyncWeFact={onSyncWeFact} />;
-        case "klanten": return <AdminKlanten klanten={klanten} onGoedkeuren={onGoedkeuren} onAfwijzen={onAfwijzen} onRefresh={loadKlanten} />;
+        case "klanten": return <AdminKlanten klanten={klanten} onRefresh={loadKlanten} />;
         case "producten": return <AdminProducten producten={producten} onRefresh={loadProducten} />;
         case "prijzen": return <AdminPrijzen producten={producten} onRefresh={loadProducten} />;
-        default: return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
+        default: return <AdminDashboard bestellingen={bestellingen} producten={producten} />;
       }
     } else {
       switch (pagina) {
@@ -1754,5 +1703,5 @@ export default function MultiluxApp() {
     }
   };
 
-  return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}><Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} aantalWachtend={aantalWachtend} isMobile={isMobile} /><div style={{ flex: 1, overflowY: "auto" }}>{renderPage()}</div></div></>);
+  return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}><Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} aantalWachtend={0} isMobile={isMobile} /><div style={{ flex: 1, overflowY: "auto" }}>{renderPage()}</div></div></>);
 }

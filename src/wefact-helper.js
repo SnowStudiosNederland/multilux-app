@@ -93,6 +93,14 @@ export async function listInvoices(debtorCode) {
   return data.invoices || [];
 }
 
+export async function downloadInvoicePDF(invoiceCode) {
+  const data = await wefactCall("invoice", "download", { InvoiceCode: invoiceCode });
+  if (data.invoice?.Attachment) {
+    return data.invoice.Attachment; // base64 encoded PDF
+  }
+  throw new Error("Geen PDF beschikbaar");
+}
+
 // ── Status mapping ─────────────────────────────────────────
 
 export function mapInvoiceStatus(wefactStatus) {
