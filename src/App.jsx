@@ -44,8 +44,8 @@ const vars = {
   "--ml-shadow-lg": "0 8px 32px rgba(0,0,0,0.10)", fontFamily: "'DM Sans', sans-serif",
 };
 
-const ML_LOGO = "https://static.wixstatic.com/media/d67b3e_0d151f569ab84b5f96565814d0d8f0fb~mv2.png/v1/fill/w_359,h_83,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo%20web%20rgb.png";
-const ML_LOGO_STAR = "https://static.wixstatic.com/media/d67b3e_5a5810fc1579421890e6ebb057d958ff~mv2.png/v1/fill/w_100,h_100,al_c,q_85,enc_avif,quality_auto/logo%20web%20ster.png";
+const ML_LOGO = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNjAgODAiPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyMCw0MCkiPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iI0Q0Njk5QyIgdHJhbnNmb3JtPSJyb3RhdGUoMCkiLz4KICAgIDxyZWN0IHg9Ii00LjUiIHk9Ii0zMCIgd2lkdGg9IjkiIGhlaWdodD0iMjYiIHJ4PSIyLjUiIGZpbGw9IiNFODY0M0EiIHRyYW5zZm9ybT0icm90YXRlKDcyKSIvPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iI0YwQzA0MSIgdHJhbnNmb3JtPSJyb3RhdGUoMTQ0KSIvPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iI0I1QTgzQSIgdHJhbnNmb3JtPSJyb3RhdGUoMjE2KSIvPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iIzhCQUZDNCIgdHJhbnNmb3JtPSJyb3RhdGUoMjg4KSIvPgogIDwvZz4KICA8dGV4dCB4PSI1IiB5PSI1NiIgZm9udC1mYW1pbHk9IkFyaWFsLEhlbHZldGljYSxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iODAwIiBmb250LXNpemU9IjQ0IiBmaWxsPSJ3aGl0ZSIgbGV0dGVyLXNwYWNpbmc9Ii0xIj5NdWx0aTwvdGV4dD4KICA8dGV4dCB4PSIxMTgiIHk9IjU2IiBmb250LWZhbWlseT0iQXJpYWwsSGVsdmV0aWNhLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSIzMDAiIGZvbnQtc2l6ZT0iNDQiIGZpbGw9IndoaXRlIiBsZXR0ZXItc3BhY2luZz0iLTEiPkx1eDwvdGV4dD4KPC9zdmc+";
+const ML_LOGO_DARK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNjAgODAiPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIyMCw0MCkiPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iI0Q0Njk5QyIgdHJhbnNmb3JtPSJyb3RhdGUoMCkiLz4KICAgIDxyZWN0IHg9Ii00LjUiIHk9Ii0zMCIgd2lkdGg9IjkiIGhlaWdodD0iMjYiIHJ4PSIyLjUiIGZpbGw9IiNFODY0M0EiIHRyYW5zZm9ybT0icm90YXRlKDcyKSIvPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iI0YwQzA0MSIgdHJhbnNmb3JtPSJyb3RhdGUoMTQ0KSIvPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iI0I1QTgzQSIgdHJhbnNmb3JtPSJyb3RhdGUoMjE2KSIvPgogICAgPHJlY3QgeD0iLTQuNSIgeT0iLTMwIiB3aWR0aD0iOSIgaGVpZ2h0PSIyNiIgcng9IjIuNSIgZmlsbD0iIzhCQUZDNCIgdHJhbnNmb3JtPSJyb3RhdGUoMjg4KSIvPgogIDwvZz4KICA8dGV4dCB4PSI1IiB5PSI1NiIgZm9udC1mYW1pbHk9IkFyaWFsLEhlbHZldGljYSxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iODAwIiBmb250LXNpemU9IjQ0IiBmaWxsPSIjMUExQTFBIiBsZXR0ZXItc3BhY2luZz0iLTEiPk11bHRpPC90ZXh0PgogIDx0ZXh0IHg9IjExOCIgeT0iNTYiIGZvbnQtZmFtaWx5PSJBcmlhbCxIZWx2ZXRpY2Esc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjMwMCIgZm9udC1zaXplPSI0NCIgZmlsbD0iIzFBMUExQSIgbGV0dGVyLXNwYWNpbmc9Ii0xIj5MdXg8L3RleHQ+Cjwvc3ZnPg==";
 
 const MONTAGETYPES = ["In de dag", "Op de dag"];
 const BEDIENZIJDES = ["Links", "Rechts"];
@@ -157,7 +157,7 @@ function LoginPage({ onLogin }) {
         <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(153,146,64,0.06)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
-          <img src={ML_LOGO} alt="Multilux" style={{ width: 220, marginBottom: 16, filter: "brightness(3)" }} />
+          <img src={ML_LOGO} alt="Multilux" style={{ width: 220, marginBottom: 16,  }} />
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: 4, textTransform: "uppercase", marginTop: 8 }}>Klantenportaal</div>
           <div style={{ width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto", borderRadius: 1 }} />
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
@@ -203,7 +203,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
       <>
         {/* Top bar */}
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "var(--ml-primary-dark)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
-          <img src={ML_LOGO} alt="Multilux" style={{ height: 20, filter: "brightness(3)" }} />
+          <img src={ML_LOGO} alt="Multilux" style={{ height: 20,  }} />
           <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
         </div>
         {/* Spacer */}
@@ -237,7 +237,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
   return (
     <div style={{ width: 250, height: "100vh", position: "sticky", top: 0, background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
       <div style={{ padding: "0 28px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
-        <img src={ML_LOGO} alt="Multilux" style={{ width: 140, filter: "brightness(3)" }} />
+        <img src={ML_LOGO} alt="Multilux" style={{ width: 140,  }} />
       </div>
       <nav style={{ flex: 1, padding: "24px 12px", display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
         {items.map(it => (
