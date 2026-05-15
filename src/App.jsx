@@ -345,9 +345,10 @@ function BestelForm({ profiel, producten, onBesteld }) {
     // WeFact: automatisch debiteur aanmaken als die er nog niet is, dan factuur
     try {
       let wfCode = profiel.wefact_code;
+      alert("Stap 1: wefact_code = " + (wfCode || "LEEG"));
       if (!wfCode) {
-        // Debiteur aanmaken in WeFact
         wfCode = await createDebtor({ naam: profiel.naam, email: profiel.email, bedrijf: profiel.bedrijf, telefoon: profiel.telefoon });
+        alert("Stap 2: createDebtor resultaat = " + (wfCode || "NULL"));
         if (wfCode) {
           await supabase.from("profielen").update({ wefact_code: wfCode }).eq("id", profiel.id);
           profiel.wefact_code = wfCode;
@@ -355,7 +356,10 @@ function BestelForm({ profiel, producten, onBesteld }) {
       }
       if (wfCode) {
         const wfResult = await createInvoice({ debtorCode: wfCode, orderNr, items: regels, producten });
+        alert("Stap 3: factuur resultaat = " + JSON.stringify(wfResult));
         if (wfResult.code) await supabase.from("bestellingen").update({ wefact_code: wfResult.code, wefact_status: "concept" }).eq("order_nr", orderNr);
+      } else {
+        alert("Stap 2b: Geen wfCode, factuur wordt niet aangemaakt");
       }
     } catch (e) { alert("WeFact fout: " + e.message); }
     setLoading(false);
