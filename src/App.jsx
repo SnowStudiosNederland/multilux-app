@@ -280,7 +280,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
 
   // Varianten en prijsgroepen uit prijsmatrix
   const varianten = gekozenProduct ? getVarianten(gekozenProduct) : [];
-  const gekozenKleur = (gekozenProduct?.kleuren || []).find(k => (k.code ? `${k.code} - ${k.naam}` : k.naam) === kleur);
+  const gekozenKleur = (gekozenProduct?.kleuren || []).find(k => k.code === kleur);
   const kleurPrijsgroep = gekozenKleur?.prijsgroep || "";
   const prijsgroepen = variant ? getPrijsgroepen(gekozenProduct, variant) : [];
 
@@ -419,7 +419,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>2. Specificaties</h3>
         <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           {varianten.length > 1 && <Input label="Uitvoering" value={variant} onChange={setVariant} error={errors.variant} options={varianten.map(v => ({ value: v, label: v }))} />}
-          <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? (gekozenProduct.kleuren || []).map(k => ({ value: k.code ? `${k.code} - ${k.naam}` : k.naam, label: `${k.code ? k.code + " - " : ""}${k.naam}${k.prijsgroep ? " (" + k.prijsgroep + ")" : ""}` })) : []} />
+          <Input label="Kleur" value={kleur} onChange={setKleur} error={errors.kleur} options={gekozenProduct ? (gekozenProduct.kleuren || []).map(k => ({ value: k.code, label: k.prijsgroep ? `${k.code} (${k.prijsgroep})` : k.code })) : []} />
           <Input label="Montagetype" value={montage} onChange={setMontage} error={errors.montage} options={MONTAGETYPES} />
           <Input label="Bedienzijde" value={bedienzijde} onChange={setBedienzijde} options={BEDIENZIJDES} />
         </div>
@@ -1286,7 +1286,7 @@ function AdminProducten({ producten, onRefresh }) {
   const [kleuren, setKleuren] = useState([]);
   const [prijsM2, setPrijsM2] = useState("");
   const [nieuweCode, setNieuweCode] = useState("");
-  const [nieuweNaam, setNieuweNaam] = useState("");
+  
   const [nieuwePG, setNieuwePG] = useState("");
 
   const startEdit = (p) => { setEditing(p.id); setNaam(p.naam); setIcon(p.icon); setKleuren(p.kleuren || []); setPrijsM2(String(p.prijs_per_m2 || 0)); };
@@ -1294,9 +1294,9 @@ function AdminProducten({ producten, onRefresh }) {
   const toggleActief = async (p) => { await supabase.from("producten").update({ actief: !p.actief }).eq("id", p.id); onRefresh(); };
 
   const addKleur = () => {
-    if (!nieuweNaam.trim()) return;
-    setKleuren(prev => [...prev, { code: nieuweCode.trim(), naam: nieuweNaam.trim(), prijsgroep: nieuwePG.trim() }]);
-    setNieuweCode(""); setNieuweNaam(""); setNieuwePG("");
+    if (!nieuweCode.trim()) return;
+    setKleuren(prev => [...prev, { code: nieuweCode.trim(), prijsgroep: nieuwePG.trim() }]);
+    setNieuweCode(""); setNieuwePG("");
   };
   const removeKleur = (idx) => setKleuren(prev => prev.filter((_, i) => i !== idx));
 
@@ -1318,7 +1318,7 @@ function AdminProducten({ producten, onRefresh }) {
                     {kleuren.map((k, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>
                         <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, minWidth: 60 }}>{k.code || "—"}</span>
-                        <span style={{ fontSize: 13 }}>{k.naam}</span>
+                        
                         {k.prijsgroep && <Badge color="var(--ml-accent)">{k.prijsgroep}</Badge>}
                         <button onClick={() => removeKleur(i)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--ml-error)", fontSize: 14 }}>✕</button>
                       </div>
@@ -1326,7 +1326,7 @@ function AdminProducten({ producten, onRefresh }) {
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                     <Input label="Code" value={nieuweCode} onChange={setNieuweCode} placeholder="bijv. R001" style={{ width: 100 }} />
-                    <Input label="Kleurnaam" value={nieuweNaam} onChange={setNieuweNaam} placeholder="bijv. Wit" style={{ flex: 1 }} />
+                    
                     <Input label="Prijsgroep" value={nieuwePG} onChange={setNieuwePG} placeholder="bijv. PG1" style={{ width: 100 }} />
                     <Btn small variant="outline" onClick={addKleur}>+ Toevoegen</Btn>
                   </div>
@@ -1340,7 +1340,7 @@ function AdminProducten({ producten, onRefresh }) {
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", opacity: p.actief ? 1 : 0.4, flexShrink: 0 }}>{PRODUCT_IMAGES[p.naam] ? <img src={PRODUCT_IMAGES[p.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.icon}</div>}</div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 15, opacity: p.actief ? 1 : 0.5 }}>{p.naam}</div>
-                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{(p.kleuren || []).map(k => k.code ? `${k.code} ${k.naam}` : k.naam).join(" · ")}</div>
+                    <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{(p.kleuren || []).map(k => k.code).join(" · ")}</div>
                     <div style={{ fontSize: 12, marginTop: 4 }}><Badge color="var(--ml-accent)">€ {(p.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge> <span style={{ color: "var(--ml-text-light)" }}>{(p.kleuren || []).length} kleuren</span></div>
                   </div>
                 </div>
