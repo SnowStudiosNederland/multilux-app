@@ -152,15 +152,15 @@ function LoginPage({ onLogin }) {
   };
 
   return (
-    <div className="ml-login" style={{ minHeight: "100vh", display: "flex", background: "var(--ml-primary-dark)", fontFamily: vars.fontFamily }}>
+    <div className="ml-login" style={{ minHeight: "100vh", display: "flex", background: "#F5F2EE", fontFamily: vars.fontFamily }}>
       <div className="ml-login-left" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)" }}>
-        <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.04)" }} />
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(153,146,64,0.06)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
-          <img src={ML_LOGO} alt="Multilux" style={{ width: 220, marginBottom: 16,  }} />
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", letterSpacing: 4, textTransform: "uppercase", marginTop: 8 }}>Klantenportaal</div>
+          <img src={ML_LOGO_DARK} alt="Multilux" style={{ width: 220, marginBottom: 16,  }} />
+          <div style={{ fontSize: 13, color: "var(--ml-text-light)", letterSpacing: 4, textTransform: "uppercase", marginTop: 8 }}>Klantenportaal</div>
           <div style={{ width: 50, height: 2, background: "var(--ml-accent)", margin: "32px auto", borderRadius: 1 }} />
-          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
+          <p style={{ fontSize: 16, color: "var(--ml-text-light)", lineHeight: 1.7, maxWidth: 340 }}>Bestel uw zonwering op maat.<br />Snel, eenvoudig en betrouwbaar.</p>
         </div>
       </div>
       <div className="ml-login-right" style={{ width: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: 60, background: "var(--ml-bg)", opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s", overflowY: "auto" }}>
@@ -202,8 +202,8 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
     return (
       <>
         {/* Top bar */}
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "var(--ml-primary-dark)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
-          <img src={ML_LOGO} alt="Multilux" style={{ height: 20,  }} />
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "#FFFFFF", borderBottom: "1px solid var(--ml-border)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
+          <img src={ML_LOGO_DARK} alt="Multilux" style={{ height: 20,  }} />
           <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
         </div>
         {/* Spacer */}
@@ -212,20 +212,20 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
         {open && (
           <div style={{ position: "fixed", top: 56, left: 0, right: 0, bottom: 0, zIndex: 999 }}>
             <div onClick={() => setOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)" }} />
-            <div style={{ position: "relative", width: 260, height: "100%", background: "var(--ml-primary-dark)", padding: "16px 12px", display: "flex", flexDirection: "column", fontFamily: vars.fontFamily }}>
+            <div style={{ position: "relative", width: 260, height: "100%", background: "#FFFFFF", padding: "16px 12px", display: "flex", flexDirection: "column", fontFamily: vars.fontFamily }}>
               <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
                 {items.map(it => (
-                  <button key={it.id} onClick={() => handleNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "rgba(255,255,255,0.1)" : "transparent", color: actief === it.id ? "#fff" : "rgba(255,255,255,0.55)", fontSize: 15, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, textAlign: "left" }}>
+                  <button key={it.id} onClick={() => handleNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "rgba(255,255,255,0.1)" : "transparent", color: actief === it.id ? "var(--ml-primary)" : "var(--ml-text-light)", fontSize: 15, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, textAlign: "left" }}>
                     <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{it.icon}</span>
                     {it.label}
                     {it.badge > 0 && (<span style={{ marginLeft: "auto", background: "var(--ml-error)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>{it.badge}</span>)}
                   </button>
                 ))}
               </nav>
-              <div style={{ padding: "16px 8px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>{profiel?.naam}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2, marginBottom: 8 }}>{profiel?.email}</div>
-                <Btn variant="ghost" small onClick={onLogout} style={{ color: "rgba(255,255,255,0.4)", padding: "6px 0", fontSize: 12 }}>Uitloggen</Btn>
+              <div style={{ padding: "16px 8px", borderTop: "1px solid var(--ml-border)" }}>
+                <div style={{ fontSize: 13, color: "var(--ml-text)", fontWeight: 500 }}>{profiel?.naam}</div>
+                <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2, marginBottom: 8 }}>{profiel?.email}</div>
+                <Btn variant="ghost" small onClick={onLogout} style={{ color: "var(--ml-text-light)", padding: "6px 0", fontSize: 12 }}>Uitloggen</Btn>
               </div>
             </div>
           </div>
@@ -235,24 +235,24 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
   }
 
   return (
-    <div style={{ width: 250, height: "100vh", position: "sticky", top: 0, background: "var(--ml-primary-dark)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
-      <div style={{ padding: "0 28px 32px", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
-        <img src={ML_LOGO} alt="Multilux" style={{ width: 140,  }} />
+    <div style={{ width: 250, height: "100vh", position: "sticky", top: 0, background: "#FFFFFF", borderRight: "1px solid var(--ml-border)", display: "flex", flexDirection: "column", padding: "28px 0", fontFamily: vars.fontFamily }}>
+      <div style={{ padding: "0 28px 32px", borderBottom: "1px solid var(--ml-border)", flexShrink: 0 }}>
+        <img src={ML_LOGO_DARK} alt="Multilux" style={{ width: 140,  }} />
       </div>
       <nav style={{ flex: 1, padding: "24px 12px", display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
         {items.map(it => (
-          <button key={it.id} onClick={() => onNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "rgba(255,255,255,0.1)" : "transparent", color: actief === it.id ? "#fff" : "rgba(255,255,255,0.55)", fontSize: 14, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, transition: "all .15s", textAlign: "left", flexShrink: 0 }}>
+          <button key={it.id} onClick={() => onNav(it.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", border: "none", borderRadius: 8, cursor: "pointer", background: actief === it.id ? "var(--ml-surface-alt)" : "transparent", color: actief === it.id ? "var(--ml-primary)" : "var(--ml-text-light)", fontSize: 14, fontWeight: actief === it.id ? 600 : 400, fontFamily: vars.fontFamily, transition: "all .15s", textAlign: "left", flexShrink: 0 }}>
             <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{it.icon}</span>
             {it.label}
             {it.badge > 0 && (<span style={{ marginLeft: "auto", background: "var(--ml-error)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>{it.badge}</span>)}
           </button>
         ))}
       </nav>
-      <div style={{ padding: "20px 20px", borderTop: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontWeight: 500, marginBottom: 4 }}>{profiel?.naam}</div>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{profiel?.email}</div>
+      <div style={{ padding: "20px 20px", borderTop: "1px solid var(--ml-border)", flexShrink: 0 }}>
+        <div style={{ fontSize: 13, color: "var(--ml-text)", fontWeight: 500, marginBottom: 4 }}>{profiel?.naam}</div>
+        <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginBottom: 4 }}>{profiel?.email}</div>
         <Badge color={profiel?.rol === "admin" ? "#E67E22" : "#27AE60"}>{profiel?.rol}</Badge><br />
-        <Btn variant="ghost" small onClick={onLogout} style={{ color: "rgba(255,255,255,0.4)", padding: "6px 0", fontSize: 12, marginTop: 12 }}>Uitloggen</Btn>
+        <Btn variant="ghost" small onClick={onLogout} style={{ color: "var(--ml-text-light)", padding: "6px 0", fontSize: 12, marginTop: 12 }}>Uitloggen</Btn>
       </div>
     </div>
   );
