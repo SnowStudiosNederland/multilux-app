@@ -153,7 +153,7 @@ function LoginPage({ onLogin }) {
 
   return (
     <div className="ml-login" style={{ minHeight: "100vh", display: "flex", background: "#F5F2EE", fontFamily: vars.fontFamily }}>
-      <div className="ml-login-left" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%)" }}>
+      <div className="ml-login-left" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #F5F2EE 0%, #EDE8E2 50%, #E5E0D8 100%)" }}>
         <div style={{ position: "absolute", top: -100, right: -100, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.04)" }} />
         <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: "rgba(153,146,64,0.06)" }} />
         <div style={{ opacity: anim ? 1 : 0, transform: anim ? "translateY(0)" : "translateY(30px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1)", textAlign: "center", zIndex: 1 }}>
