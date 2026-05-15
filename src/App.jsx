@@ -191,9 +191,10 @@ function LoginPage({ onLogin }) {
 
 function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile }) {
   const [open, setOpen] = useState(false);
-  const isAdmin = profiel?.rol === "admin";
+  const isAdmin = profiel?.rol === "admin" || profiel?.rol === "it-beheerder";
+  const rolLabel = (rol) => rol === "admin" ? "Beheerder" : rol === "it-beheerder" ? "IT-Beheerder" : rol === "klant" ? "Klant" : rol;
   const items = isAdmin
-    ? [{ id: "dashboard", label: "Dashboard", icon: "◫" }, { id: "bestellingen", label: "Bestellingen", icon: "☰" }, { id: "klanten", label: "Klanten", icon: "◉", badge: aantalWachtend }, { id: "producten", label: "Producten", icon: "▦" }]
+    ? [{ id: "dashboard", label: "Dashboard", icon: "◫" }, { id: "bestellingen", label: "Bestellingen", icon: "☰" }, { id: "klanten", label: "Klanten", icon: "◉", badge: aantalWachtend }, { id: "producten", label: "Producten", icon: "▦" }, { id: "prijzen", label: "Prijzen", icon: "€" }]
     : [{ id: "bestellen", label: "Nieuwe Bestelling", icon: "＋" }, { id: "mijn-bestellingen", label: "Mijn Bestellingen", icon: "☰" }, { id: "standaardmaten", label: "Mijn Maten", icon: "◳" }];
 
   const handleNav = (id) => { onNav(id); if (isMobile) setOpen(false); };
@@ -251,7 +252,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
       <div style={{ padding: "20px 20px", borderTop: "1px solid var(--ml-border)", flexShrink: 0 }}>
         <div style={{ fontSize: 13, color: "var(--ml-text)", fontWeight: 500, marginBottom: 4 }}>{profiel?.naam}</div>
         <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginBottom: 4 }}>{profiel?.email}</div>
-        <Badge color={profiel?.rol === "admin" ? "#E67E22" : "#27AE60"}>{profiel?.rol}</Badge><br />
+        <Badge color={profiel?.rol === "admin" || profiel?.rol === "it-beheerder" ? "#E67E22" : "#27AE60"}>{rolLabel(profiel?.rol)}</Badge><br />
         <Btn variant="ghost" small onClick={onLogout} style={{ color: "var(--ml-text-light)", padding: "6px 0", fontSize: 12, marginTop: 12 }}>Uitloggen</Btn>
       </div>
     </div>
@@ -963,8 +964,8 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
   const zoekLower = zoek.toLowerCase();
   const filterKlant = (k) => !zoek || [k.naam, k.email, k.telefoon, k.bedrijf].filter(Boolean).some(v => v.toLowerCase().includes(zoekLower));
-  const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin").filter(filterKlant);
-  const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin").filter(filterKlant);
+  const wachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin" && k.rol !== "it-beheerder").filter(filterKlant);
+  const goedgekeurd = klanten.filter(k => k.goedgekeurd || k.rol === "admin" || k.rol === "it-beheerder").filter(filterKlant);
 
   // WeFact debiteuren die nog geen portaal-account hebben
   const gekoppeldeEmails = klanten.map(k => k.email?.toLowerCase());
@@ -1157,7 +1158,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
             <Input label="Naam *" value={formNaam} onChange={setFormNaam} placeholder="Volledige naam" />
             <Input label="E-mailadres *" type="email" value={formEmail} onChange={setFormEmail} placeholder="email@voorbeeld.nl" />
             <Input label="Wachtwoord *" type="password" value={formWw} onChange={setFormWw} placeholder="Min. 6 tekens" />
-            <Input label="Rol" value={formRol} onChange={setFormRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
+            <Input label="Rol" value={formRol} onChange={setFormRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }, { value: "it-beheerder", label: "IT-Beheerder" }]} />
             <Input label="Bedrijfsnaam (optioneel)" value={formBedrijf} onChange={setFormBedrijf} placeholder="Bedrijfsnaam" />
             <Input label="Telefoonnummer (optioneel)" value={formTelefoon} onChange={setFormTelefoon} placeholder="+31 6 12345678" />
           </div>
@@ -1239,7 +1240,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
               <div>
                 <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
                   <Input label="Naam" value={editNaam} onChange={setEditNaam} />
-                  <Input label="Rol" value={editRol} onChange={setEditRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }]} />
+                  <Input label="Rol" value={editRol} onChange={setEditRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }, { value: "it-beheerder", label: "IT-Beheerder" }]} />
                   <Input label="Bedrijfsnaam" value={editBedrijf} onChange={setEditBedrijf} placeholder="Optioneel" />
                   <Input label="Telefoonnummer" value={editTelefoon} onChange={setEditTelefoon} placeholder="Optioneel" />
                 </div>
@@ -1253,7 +1254,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
                   <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
-                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}><Badge color={k.rol === "admin" ? "#E67E22" : "#27AE60"}>{k.rol}</Badge>{k.wefact_code && <span style={{ fontSize: 11, color: "var(--ml-text-light)", fontFamily: "monospace" }}>WeFact: {k.wefact_code}</span>}</div>
+                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}><Badge color={k.rol === "admin" || k.rol === "it-beheerder" ? "#E67E22" : "#27AE60"}>{k.rol === "admin" ? "Beheerder" : k.rol === "it-beheerder" ? "IT-Beheerder" : "Klant"}</Badge>{k.wefact_code && <span style={{ fontSize: 11, color: "var(--ml-text-light)", fontFamily: "monospace" }}>WeFact: {k.wefact_code}</span>}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="outline" onClick={() => handleEdit(k)}>Bewerken</Btn>
@@ -1353,6 +1354,138 @@ function AdminProducten({ producten, onRefresh }) {
   );
 }
 
+function AdminPrijzen({ producten, onRefresh }) {
+  const [editing, setEditing] = useState(null);
+  const [prijsM2, setPrijsM2] = useState("");
+  const [expandedProd, setExpandedProd] = useState(null);
+
+  const savePrijs = async (prodId) => {
+    await supabase.from("producten").update({ prijs_per_m2: +prijsM2 || 0 }).eq("id", prodId);
+    setEditing(null);
+    onRefresh();
+  };
+
+  const getVariantInfo = (prod) => {
+    if (!prod.prijsmatrix?.varianten) return [];
+    return prod.prijsmatrix.varianten.map(v => {
+      const sections = v.data || [];
+      const isBreedteOnly = sections[0]?.type === "breedte_only";
+      const prijsgroepen = isBreedteOnly
+        ? (sections[0]?.prijsgroepen || [])
+        : sections.map(s => s.prijsgroep).filter(Boolean);
+      const aantalPrijzen = isBreedteOnly
+        ? (sections[0]?.rijen?.length || 0) * prijsgroepen.length
+        : sections.reduce((sum, s) => sum + (s.rijen?.length || 0) * (s.breedtes?.length || 0), 0);
+      return { naam: v.naam, prijsgroepen, aantalPrijzen, isBreedteOnly, sections };
+    });
+  };
+
+  return (
+    <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Prijzen</h1>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer de m²-prijzen en bekijk de prijsmatrices per product.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {producten.map(prod => {
+          const varianten = getVariantInfo(prod);
+          const isExpanded = expandedProd === prod.id;
+          return (
+            <Card key={prod.id} style={{ padding: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isExpanded ? 20 : 0 }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>
+                    {PRODUCT_IMAGES[prod.naam] ? <img src={PRODUCT_IMAGES[prod.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod.icon}</div>}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{prod.naam}</div>
+                    <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>
+                      {varianten.length > 0
+                        ? <span>{varianten.length} {varianten.length === 1 ? "variant" : "varianten"} · {varianten.reduce((s, v) => s + v.aantalPrijzen, 0)} prijspunten</span>
+                        : <span>Geen prijsmatrix geladen</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  {editing === prod.id ? (
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                      <Input label="€/m²" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 100 }} />
+                      <Btn small onClick={() => savePrijs(prod.id)}>Opslaan</Btn>
+                      <Btn small variant="ghost" onClick={() => setEditing(null)}>✕</Btn>
+                    </div>
+                  ) : (
+                    <>
+                      <Badge color="var(--ml-accent)">€ {(prod.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge>
+                      <Btn small variant="outline" onClick={() => { setEditing(prod.id); setPrijsM2(String(prod.prijs_per_m2 || 0)); }}>Prijs wijzigen</Btn>
+                    </>
+                  )}
+                  {varianten.length > 0 && (
+                    <Btn small variant="ghost" onClick={() => setExpandedProd(isExpanded ? null : prod.id)}>{isExpanded ? "▲ Sluiten" : "▼ Matrix bekijken"}</Btn>
+                  )}
+                </div>
+              </div>
+
+              {isExpanded && varianten.map((v, vi) => (
+                <div key={vi} style={{ marginTop: vi === 0 ? 0 : 20, padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{v.naam}</div>
+                  <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginBottom: 12 }}>
+                    Prijsgroepen: {v.prijsgroepen.join(", ")} · {v.aantalPrijzen} prijspunten · {v.isBreedteOnly ? "Breedte-only" : "2D matrix (breedte × hoogte)"}
+                  </div>
+                  {v.isBreedteOnly ? (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ fontSize: 11, borderCollapse: "collapse", width: "100%" }}>
+                        <thead>
+                          <tr style={{ background: "var(--ml-bg)" }}>
+                            <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--ml-border)" }}>Breedte (cm)</th>
+                            {v.prijsgroepen.map((pg, i) => <th key={i} style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--ml-border)" }}>{pg}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(v.sections[0]?.rijen || []).slice(0, 20).map((rij, ri) => (
+                            <tr key={ri} style={{ borderBottom: "1px solid var(--ml-border)" }}>
+                              <td style={{ padding: "4px 10px", fontWeight: 600 }}>{rij.breedte}</td>
+                              {v.prijsgroepen.map((pg, i) => <td key={i} style={{ padding: "4px 10px", textAlign: "right" }}>€ {(rij.prijzen[pg] || 0).toFixed(2)}</td>)}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {(v.sections[0]?.rijen || []).length > 20 && <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 8 }}>... en {(v.sections[0]?.rijen || []).length - 20} meer</div>}
+                    </div>
+                  ) : (
+                    v.sections.map((section, si) => (
+                      <div key={si} style={{ marginTop: si > 0 ? 16 : 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{section.prijsgroep}</div>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ fontSize: 11, borderCollapse: "collapse", width: "100%" }}>
+                            <thead>
+                              <tr style={{ background: "var(--ml-bg)" }}>
+                                <th style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--ml-border)" }}>H\B</th>
+                                {(section.breedtes || []).map((b, i) => <th key={i} style={{ padding: "4px 8px", textAlign: "right", borderBottom: "1px solid var(--ml-border)" }}>{b}</th>)}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(section.rijen || []).slice(0, 15).map((rij, ri) => (
+                                <tr key={ri} style={{ borderBottom: "1px solid var(--ml-border)" }}>
+                                  <td style={{ padding: "3px 8px", fontWeight: 600 }}>{rij.hoogte}</td>
+                                  {(rij.prijzen || []).map((p, i) => <td key={i} style={{ padding: "3px 8px", textAlign: "right" }}>{p ? "€" + p.toFixed(0) : "—"}</td>)}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          {(section.rijen || []).length > 15 && <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 4 }}>... en {(section.rijen || []).length - 15} meer rijen</div>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ))}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function MultiluxApp() {
   const [session, setSession] = useState(null);
   const [profiel, setProfiel] = useState(null);
@@ -1361,7 +1494,7 @@ export default function MultiluxApp() {
   const [bestellingen, setBestellingen] = useState([]);
   const [klanten, setKlanten] = useState([]);
   const [loading, setLoading] = useState(true);
-  const aantalWachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin").length;
+  const aantalWachtend = klanten.filter(k => !k.goedgekeurd && k.rol !== "admin" && k.rol !== "it-beheerder").length;
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -1378,17 +1511,17 @@ export default function MultiluxApp() {
   const loadProfiel = async (userId, setDefaultPage) => {
     const { data } = await supabase.from("profielen").select("*").eq("id", userId).single();
     setProfiel(data);
-    if (data?.goedgekeurd || data?.rol === "admin") {
-      if (setDefaultPage) setPagina(prev => prev || (data?.rol === "admin" ? "dashboard" : "bestellen"));
+    if (data?.goedgekeurd || data?.rol === "admin" || data?.rol === "it-beheerder") {
+      if (setDefaultPage) setPagina(prev => prev || ((data?.rol === "admin" || data?.rol === "it-beheerder") ? "dashboard" : "bestellen"));
       await loadProducten();
       await loadBestellingen(data);
-      if (data?.rol === "admin") await loadKlanten();
+      if (data?.rol === "admin" || data?.rol === "it-beheerder") await loadKlanten();
     }
     setLoading(false);
   };
 
   const loadProducten = async () => { const { data } = await supabase.from("producten").select("*").order("volgorde"); setProducten(data || []); };
-  const loadBestellingen = async (prof) => { let query = supabase.from("bestellingen").select("*, profielen(naam, email)").order("created_at"); if (prof?.rol !== "admin") query = query.eq("klant_id", prof.id); const { data } = await query; setBestellingen(data || []); };
+  const loadBestellingen = async (prof) => { let query = supabase.from("bestellingen").select("*, profielen(naam, email)").order("created_at"); if (prof?.rol !== "admin" && prof?.rol !== "it-beheerder") query = query.eq("klant_id", prof.id); const { data } = await query; setBestellingen(data || []); };
   const loadKlanten = async () => { const { data } = await supabase.from("profielen").select("*").order("created_at"); setKlanten(data || []); };
   const onStatusUpdate = async (id, status) => { await supabase.from("bestellingen").update({ status, updated_at: new Date().toISOString() }).eq("id", id); await loadBestellingen(profiel); };
 
@@ -1423,15 +1556,16 @@ export default function MultiluxApp() {
 
   if (loading) return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}><Loader /></div></>);
   if (!session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><LoginPage onLogin={() => {}} /></div></>);
-  if (profiel && !profiel.goedgekeurd && profiel.rol !== "admin") return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><WachtScherm profiel={profiel} onLogout={handleLogout} /></div></>);
+  if (profiel && !profiel.goedgekeurd && profiel.rol !== "admin" && profiel.rol !== "it-beheerder") return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><WachtScherm profiel={profiel} onLogout={handleLogout} /></div></>);
 
   const renderPage = () => {
-    if (profiel?.rol === "admin") {
+    if (profiel?.rol === "admin" || profiel?.rol === "it-beheerder") {
       switch (pagina) {
         case "dashboard": return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
         case "bestellingen": return <AdminBestellingen bestellingen={bestellingen} producten={producten} onStatusUpdate={onStatusUpdate} onSyncWeFact={onSyncWeFact} />;
         case "klanten": return <AdminKlanten klanten={klanten} onGoedkeuren={onGoedkeuren} onAfwijzen={onAfwijzen} onRefresh={loadKlanten} />;
         case "producten": return <AdminProducten producten={producten} onRefresh={loadProducten} />;
+        case "prijzen": return <AdminPrijzen producten={producten} onRefresh={loadProducten} />;
         default: return <AdminDashboard bestellingen={bestellingen} producten={producten} aantalWachtend={aantalWachtend} />;
       }
     } else {
