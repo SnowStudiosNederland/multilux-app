@@ -1050,18 +1050,27 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
   const handleCreateAccount = async () => {
     setFormErr(""); setFormMsg("");
-    if (!formNaam.trim() || !formEmail.trim() || !formWw.trim()) { setFormErr("Vul alle verplichte velden in"); return; }
-    if (formWw.length < 6) { setFormErr("Wachtwoord moet minimaal 6 tekens zijn"); return; }
+    if (!formNaam.trim() || !formEmail.trim()) { setFormErr("Vul naam en e-mailadres in"); return; }
     setFormLoading(true);
-    const { createClient } = await import("@supabase/supabase-js");
-    const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-    const { error } = await tempClient.auth.signUp({ email: formEmail, password: formWw, options: { data: { naam: formNaam.trim(), rol: formRol, telefoon: formTelefoon.trim(), bedrijf: formBedrijf.trim() } } });
+    try {
+      const resp = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formEmail, naam: formNaam.trim(), bedrijf: formBedrijf.trim(), telefoon: formTelefoon.trim(), redirectTo: window.location.origin }),
+      });
+      const result = await resp.json();
+      if (result.error) { setFormErr(result.error); setFormLoading(false); return; }
+      // Update rol als het geen klant is
+      if (formRol !== "klant" && result.userId) {
+        await new Promise(r => setTimeout(r, 1500));
+        await supabase.from("profielen").update({ rol: formRol, goedgekeurd: true }).eq("id", result.userId);
+      }
+      setFormMsg(`Uitnodiging verstuurd naar ${formEmail}`);
+      setFormNaam(""); setFormEmail(""); setFormRol("klant"); setFormTelefoon(""); setFormBedrijf("");
+      setTimeout(() => { setFormMsg(""); setShowForm(false); }, 3000);
+      onRefresh();
+    } catch (e) { setFormErr(e.message); }
     setFormLoading(false);
-    if (error) { setFormErr(error.message); return; }
-    setFormMsg(`Account voor ${formNaam} aangemaakt!`);
-    setFormNaam(""); setFormEmail(""); setFormWw(""); setFormRol("klant"); setFormTelefoon(""); setFormBedrijf("");
-    setTimeout(() => { setFormMsg(""); setShowForm(false); }, 2000);
-    onRefresh();
   };
 
   const handleEdit = (k) => { setEditing(k.id); setEditNaam(k.naam); setEditRol(k.rol); setEditTelefoon(k.telefoon || ""); setEditBedrijf(k.bedrijf || ""); };
@@ -1154,7 +1163,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
-          <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Account aanmaken"}</Btn>
+          <Btn onClick={() => setShowForm(!showForm)} variant={showForm ? "ghost" : "primary"} small>{showForm ? "Annuleren" : "+ Uitnodigen"}</Btn>
         </div>
       </div>
       <div style={{ marginBottom: 24, position: "relative" }}>
@@ -1167,18 +1176,17 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
 
       {showForm && (
         <Card style={{ marginBottom: 28, border: "1.5px solid var(--ml-primary)22" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>Nieuw account aanmaken</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 20px", color: "var(--ml-primary)" }}>Gebruiker uitnodigen</h3>
           <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <Input label="Naam *" value={formNaam} onChange={setFormNaam} placeholder="Volledige naam" />
             <Input label="E-mailadres *" type="email" value={formEmail} onChange={setFormEmail} placeholder="email@voorbeeld.nl" />
-            <Input label="Wachtwoord *" type="password" value={formWw} onChange={setFormWw} placeholder="Min. 6 tekens" />
             <Input label="Rol" value={formRol} onChange={setFormRol} options={[{ value: "klant", label: "Klant" }, { value: "admin", label: "Beheerder" }, { value: "it-beheerder", label: "IT-Beheerder" }]} />
             <Input label="Bedrijfsnaam (optioneel)" value={formBedrijf} onChange={setFormBedrijf} placeholder="Bedrijfsnaam" />
             <Input label="Telefoonnummer (optioneel)" value={formTelefoon} onChange={setFormTelefoon} placeholder="+31 6 12345678" />
           </div>
           {formErr && (<div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "var(--ml-error)10", color: "var(--ml-error)", fontSize: 13 }}>⚠ {formErr}</div>)}
           {formMsg && (<div style={{ marginBottom: 12, padding: "8px 14px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 13 }}>✓ {formMsg}</div>)}
-          <Btn onClick={handleCreateAccount} disabled={formLoading} small>{formLoading ? "Bezig..." : "Account aanmaken"}</Btn>
+          <Btn onClick={handleCreateAccount} disabled={formLoading} small>{formLoading ? "Bezig..." : "Uitnodiging versturen"}</Btn>
         </Card>
       )}
 
