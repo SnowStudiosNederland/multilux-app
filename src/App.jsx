@@ -1596,6 +1596,7 @@ function PasswordResetScreen({ onDone }) {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isInvite = window.location.hash.includes("type=invite");
 
   const handleReset = async () => {
     setErr("");
@@ -1606,16 +1607,19 @@ function PasswordResetScreen({ onDone }) {
     setLoading(false);
     if (error) { setErr("Fout: " + error.message); return; }
     setSuccess(true);
+    // Clear the hash so it doesn't trigger again
+    window.location.hash = "";
     setTimeout(() => onDone(), 2000);
   };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F5F2EE", fontFamily: vars.fontFamily }}>
       <Card style={{ maxWidth: 420, width: "100%", padding: 40, margin: 20 }}>
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>Nieuw wachtwoord instellen</h2>
-        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Kies een nieuw wachtwoord voor uw account.</p>
+        <img src={ML_LOGO_DARK} alt="Multilux" style={{ width: 180, marginBottom: 24 }} />
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>{isInvite ? "Welkom bij Multilux!" : "Nieuw wachtwoord instellen"}</h2>
+        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>{isInvite ? "Stel een wachtwoord in om uw account te activeren." : "Kies een nieuw wachtwoord voor uw account."}</p>
         {success ? (
-          <div style={{ padding: "16px 20px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 14, fontWeight: 500 }}>✓ Wachtwoord succesvol gewijzigd! U wordt doorgestuurd...</div>
+          <div style={{ padding: "16px 20px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 14, fontWeight: 500 }}>✓ {isInvite ? "Account geactiveerd! U wordt doorgestuurd naar het portaal..." : "Wachtwoord succesvol gewijzigd! U wordt doorgestuurd..."}</div>
         ) : (
           <>
             {err && <div style={{ marginBottom: 16, padding: "10px 16px", borderRadius: 8, background: "var(--ml-error)15", color: "var(--ml-error)", fontSize: 13 }}>{err}</div>}
@@ -1644,11 +1648,27 @@ export default function MultiluxApp() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); if (session) loadProfiel(session.user.id, true); else setLoading(false); });
+    // Detect invite or recovery links in URL hash
+    const hash = window.location.hash;
+    const isInvite = hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("type=magiclink");
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        // If coming from invite link, show password setup
+        if (hash.includes("type=invite")) { setShowPasswordReset(true); }
+        loadProfiel(session.user.id, true);
+      } else { setLoading(false); }
+    });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (_event === "PASSWORD_RECOVERY") { setShowPasswordReset(true); if (session) loadProfiel(session.user.id, true); }
-      else if (_event === "SIGNED_IN") loadProfiel(session.user.id, true);
+      else if (_event === "SIGNED_IN") {
+        // Check if this is an invite sign-in
+        const h = window.location.hash;
+        if (h.includes("type=invite")) setShowPasswordReset(true);
+        loadProfiel(session.user.id, true);
+      }
       else if (_event === "SIGNED_OUT") { setProfiel(null); setPagina(""); setLoading(false); setShowPasswordReset(false); }
       else if (session && !profiel) loadProfiel(session.user.id, true);
     });
