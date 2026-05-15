@@ -252,7 +252,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, aantalWachtend, isMobile })
       <div style={{ padding: "20px 20px", borderTop: "1px solid var(--ml-border)", flexShrink: 0 }}>
         <div style={{ fontSize: 13, color: "var(--ml-text)", fontWeight: 500, marginBottom: 4 }}>{profiel?.naam}</div>
         <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginBottom: 4 }}>{profiel?.email}</div>
-        <Badge color={profiel?.rol === "admin" || profiel?.rol === "it-beheerder" ? "#E67E22" : "#27AE60"}>{rolLabel(profiel?.rol)}</Badge><br />
+        <Badge color={profiel?.rol === "admin" ? "#E67E22" : profiel?.rol === "it-beheerder" ? "#2980B9" : "#27AE60"}>{rolLabel(profiel?.rol)}</Badge><br />
         <Btn variant="ghost" small onClick={onLogout} style={{ color: "var(--ml-text-light)", padding: "6px 0", fontSize: 12, marginTop: 12 }}>Uitloggen</Btn>
       </div>
     </div>
@@ -1254,7 +1254,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>{k.naam}{k.bedrijf && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {k.bedrijf}</span>}</div>
                   <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{k.email}{k.telefoon && <span> · {k.telefoon}</span>}</div>
-                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}><Badge color={k.rol === "admin" || k.rol === "it-beheerder" ? "#E67E22" : "#27AE60"}>{k.rol === "admin" ? "Beheerder" : k.rol === "it-beheerder" ? "IT-Beheerder" : "Klant"}</Badge>{k.wefact_code && <span style={{ fontSize: 11, color: "var(--ml-text-light)", fontFamily: "monospace" }}>WeFact: {k.wefact_code}</span>}</div>
+                  <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}><Badge color={k.rol === "admin" ? "#E67E22" : k.rol === "it-beheerder" ? "#2980B9" : "#27AE60"}>{k.rol === "admin" ? "Beheerder" : k.rol === "it-beheerder" ? "IT-Beheerder" : "Klant"}</Badge>{k.wefact_code && <span style={{ fontSize: 11, color: "var(--ml-text-light)", fontFamily: "monospace" }}>WeFact: {k.wefact_code}</span>}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="outline" onClick={() => handleEdit(k)}>Bewerken</Btn>
