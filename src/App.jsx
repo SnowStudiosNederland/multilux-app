@@ -542,17 +542,17 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
     const wefactCode = items[0]?.wefact_code;
     if (wefactCode) {
       try {
-        const base64PDF = await downloadInvoicePDF(wefactCode);
-        const byteChars = atob(base64PDF);
+        const { base64, filename } = await downloadInvoicePDF(wefactCode);
+        const byteChars = atob(base64);
         const byteArray = new Uint8Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
         const blob = new Blob([byteArray], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url; a.download = `Factuur-${orderNr}.pdf`; a.click();
+        a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
         return;
-      } catch (e) { console.warn("WeFact PDF niet beschikbaar, lokale PDF wordt gegenereerd:", e.message); }
+      } catch (e) { console.warn("WeFact PDF niet beschikbaar:", e.message); }
     }
 
     // Fallback: lokale PDF genereren

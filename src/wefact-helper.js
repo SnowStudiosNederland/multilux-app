@@ -95,10 +95,10 @@ export async function listInvoices(debtorCode) {
 
 export async function downloadInvoicePDF(invoiceCode) {
   const data = await wefactCall("invoice", "download", { InvoiceCode: invoiceCode });
-  if (data.invoice?.Attachment) {
-    return data.invoice.Attachment; // base64 encoded PDF
+  if (data.invoice?.Base64) {
+    return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
   }
-  throw new Error("Geen PDF beschikbaar");
+  throw new Error(data.errors?.join(", ") || "Geen PDF beschikbaar");
 }
 
 // ── Status mapping ─────────────────────────────────────────
