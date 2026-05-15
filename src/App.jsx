@@ -113,9 +113,6 @@ function LoginPage({ onLogin }) {
   const [mode, setMode] = useState("login"); // login | register | forgot
   const [email, setEmail] = useState("");
   const [ww, setWw] = useState("");
-  const [naam, setNaam] = useState("");
-  const [telefoon, setTelefoon] = useState("");
-  const [bedrijf, setBedrijf] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [anim, setAnim] = useState(false);
@@ -131,14 +128,13 @@ function LoginPage({ onLogin }) {
     onLogin(data.user);
   };
 
-  const handleRegister = async () => {
+  const handleMagicLink = async () => {
     setErr(""); setLoading(true);
-    if (!naam.trim()) { setErr("Vul een naam in"); setLoading(false); return; }
-    const { data, error } = await supabase.auth.signUp({ email, password: ww, options: { data: { naam: naam.trim(), rol: "klant", telefoon: telefoon.trim(), bedrijf: bedrijf.trim() } } });
+    if (!email.trim()) { setErr("Vul uw e-mailadres in"); setLoading(false); return; }
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
     setLoading(false);
     if (error) { setErr(error.message); return; }
-    setSuccess("Account aangemaakt! Een beheerder moet uw account nog goedkeuren voordat u kunt inloggen.");
-    setMode("login");
+    setSuccess("Er is een inloglink verstuurd naar uw e-mailadres. Controleer ook uw spamfolder.");
   };
 
   const handleForgotPassword = async () => {
@@ -164,26 +160,22 @@ function LoginPage({ onLogin }) {
         </div>
       </div>
       <div className="ml-login-right" style={{ width: 480, display: "flex", flexDirection: "column", justifyContent: "center", padding: 60, background: "var(--ml-bg)", opacity: anim ? 1 : 0, transform: anim ? "translateX(0)" : "translateX(40px)", transition: "all 0.8s cubic-bezier(.23,1,.32,1) 0.2s", overflowY: "auto" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>{mode === "login" ? "Welkom terug" : mode === "register" ? "Account aanmaken" : "Wachtwoord vergeten"}</h2>
-        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 36px" }}>{mode === "login" ? "Log in op uw Multilux account" : mode === "register" ? "Registreer als nieuwe klant" : "Voer uw e-mailadres in om een reset-link te ontvangen"}</p>
+        <h2 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 8px" }}>{mode === "login" ? "Welkom terug" : mode === "magic" ? "Inloggen via e-mail" : "Wachtwoord vergeten"}</h2>
+        <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 36px" }}>{mode === "login" ? "Log in op uw Multilux account" : mode === "magic" ? "Ontvang een inloglink op uw e-mailadres" : "Voer uw e-mailadres in om een reset-link te ontvangen"}</p>
         {success && (<div style={{ marginBottom: 20, padding: "10px 16px", borderRadius: 8, background: "var(--ml-success)15", color: "var(--ml-success)", fontSize: 13, fontWeight: 500 }}>✓ {success}</div>)}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {mode === "register" && (<>
-            <Input label="Naam *" value={naam} onChange={setNaam} placeholder="Uw volledige naam" />
-            <div className="ml-form-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Input label="Bedrijfsnaam (optioneel)" value={bedrijf} onChange={setBedrijf} placeholder="Uw bedrijf" />
-              <Input label="Telefoonnummer (optioneel)" value={telefoon} onChange={setTelefoon} placeholder="+31 6 12345678" />
-            </div>
-          </>)}
           <Input label="E-mailadres" type="email" value={email} onChange={setEmail} placeholder="uw@email.nl" />
-          {mode !== "forgot" && <Input label="Wachtwoord" type="password" value={ww} onChange={setWw} placeholder="••••••••" />}
+          {mode === "login" && <Input label="Wachtwoord" type="password" value={ww} onChange={setWw} placeholder="••••••••" />}
         </div>
         {err && (<div style={{ marginTop: 16, padding: "10px 16px", borderRadius: 8, background: "var(--ml-error)10", color: "var(--ml-error)", fontSize: 13, fontWeight: 500 }}>⚠ {err}</div>)}
-        <Btn onClick={mode === "login" ? handleLogin : mode === "register" ? handleRegister : handleForgotPassword} disabled={loading} style={{ marginTop: 28, width: "100%", padding: "14px 28px", fontSize: 15 }}>{loading ? "Even geduld..." : mode === "login" ? "Inloggen →" : mode === "register" ? "Registreren →" : "Reset-link versturen →"}</Btn>
+        <Btn onClick={mode === "login" ? handleLogin : mode === "magic" ? handleMagicLink : handleForgotPassword} disabled={loading} style={{ marginTop: 28, width: "100%", padding: "14px 28px", fontSize: 15 }}>{loading ? "Even geduld..." : mode === "login" ? "Inloggen →" : mode === "magic" ? "Inloglink versturen →" : "Reset-link versturen →"}</Btn>
         {mode === "login" && (
-          <button onClick={() => { setMode("forgot"); setErr(""); setSuccess(""); }} style={{ marginTop: 12, background: "none", border: "none", cursor: "pointer", color: "var(--ml-text-light)", fontSize: 13, fontFamily: vars.fontFamily }}>Wachtwoord vergeten?</button>
+          <>
+            <button onClick={() => { setMode("magic"); setErr(""); setSuccess(""); }} style={{ marginTop: 16, background: "none", border: "1.5px solid var(--ml-border)", borderRadius: 8, cursor: "pointer", color: "var(--ml-text)", fontSize: 14, fontFamily: vars.fontFamily, fontWeight: 500, padding: "12px 24px" }}>✉ Inloggen via e-mail link</button>
+            <button onClick={() => { setMode("forgot"); setErr(""); setSuccess(""); }} style={{ marginTop: 12, background: "none", border: "none", cursor: "pointer", color: "var(--ml-text-light)", fontSize: 13, fontFamily: vars.fontFamily }}>Wachtwoord vergeten?</button>
+          </>
         )}
-        <button onClick={() => { setMode(mode === "register" ? "login" : mode === "forgot" ? "login" : "register"); setErr(""); setSuccess(""); }} style={{ marginTop: mode === "login" ? 8 : 20, background: "none", border: "none", cursor: "pointer", color: "var(--ml-primary)", fontSize: 14, fontFamily: vars.fontFamily, fontWeight: 500 }}>{mode === "login" ? "Nog geen account? Registreer hier" : "Terug naar inloggen"}</button>
+        {mode !== "login" && <button onClick={() => { setMode("login"); setErr(""); setSuccess(""); }} style={{ marginTop: 20, background: "none", border: "none", cursor: "pointer", color: "var(--ml-primary)", fontSize: 14, fontFamily: vars.fontFamily, fontWeight: 500 }}>← Terug naar inloggen</button>}
       </div>
     </div>
   );
@@ -291,10 +283,21 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const kleurPrijsgroep = gekozenKleur?.prijsgroep || "";
   const prijsgroepen = variant ? getPrijsgroepen(gekozenProduct, variant) : [];
 
-  // Prijsberekening via matrix lookup
+  // Prijsberekening via matrix lookup, fallback naar m²
   const berekenPrijs = (b, h, prod, var_, pg) => {
-    if (!b || !prod || !var_ || !pg) return { prijs: 0, gevonden: false, info: "" };
-    return zoekPrijs(prod, var_, pg, b, h || b);
+    if (!b || !prod) return { prijs: 0, gevonden: false, info: "" };
+    // Probeer matrix lookup
+    if (var_ && pg) {
+      const result = zoekPrijs(prod, var_, pg, b, h || b);
+      if (result.gevonden) return result;
+    }
+    // Fallback naar prijs per m²
+    if (prod.prijs_per_m2 && h) {
+      const m2 = (b / 1000) * (h / 1000);
+      const prijs = Math.round(m2 * prod.prijs_per_m2 * 100) / 100;
+      return { prijs, gevonden: true, info: `Fallback: ${m2.toFixed(2)} m² × € ${prod.prijs_per_m2}` };
+    }
+    return { prijs: 0, gevonden: false, info: var_ && pg ? "Prijs niet gevonden in matrix" : "Selecteer uitvoering en kleur" };
   };
   const prijsResult = berekenPrijs(+breedte, +hoogte, gekozenProduct, variant, kleurPrijsgroep);
   const stukprijs = prijsResult.prijs;
@@ -1031,15 +1034,14 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
     if (!email) { setResetMsg("Deze debiteur heeft geen e-mailadres in WeFact"); return; }
     setWfCreating(code);
     try {
-      const tempWw = "Multilux" + Math.random().toString(36).slice(2, 8) + "!";
-      const { createClient } = await import("@supabase/supabase-js");
-      const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-      const { error } = await tempClient.auth.signUp({ email, password: tempWw, options: { data: { naam, rol: "klant", telefoon, bedrijf } } });
-      if (error) { setResetMsg("Fout: " + error.message); setWfCreating(null); return; }
-      // Wacht even op trigger, dan update wefact_code en goedkeuring
-      await new Promise(r => setTimeout(r, 1500));
-      await supabase.from("profielen").update({ wefact_code: code, goedgekeurd: true, bedrijf, telefoon }).eq("email", email);
-      setResetMsg(`Account aangemaakt voor ${naam} (${email}). Tijdelijk wachtwoord: ${tempWw}`);
+      const resp = await fetch("/api/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, naam, bedrijf, telefoon, wefact_code: code, redirectTo: window.location.origin }),
+      });
+      const result = await resp.json();
+      if (result.error) { setResetMsg("Fout: " + result.error); setWfCreating(null); return; }
+      setResetMsg(`Uitnodiging verstuurd naar ${email}. De klant ontvangt een e-mail om in te loggen.`);
       onRefresh();
       syncWeFact();
     } catch (e) { setResetMsg("Fout: " + e.message); }
@@ -1203,7 +1205,7 @@ function AdminKlanten({ klanten, onGoedkeuren, onAfwijzen, onRefresh }) {
                       <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 2, fontFamily: "monospace" }}>{code}</div>
                     </div>
                     <Btn small variant="accent" onClick={() => createPortalFromWeFact(d)} disabled={wfCreating === code || !d.EmailAddress}>
-                      {wfCreating === code ? "Bezig..." : "Portal account aanmaken"}
+                      {wfCreating === code ? "Bezig..." : "Uitnodiging versturen"}
                     </Btn>
                   </div>
                 </Card>
@@ -1499,20 +1501,29 @@ function AdminPrijzen({ producten, onRefresh }) {
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  {editing === prod.id ? (
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                      <Input label="€/m²" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 100 }} />
-                      <Btn small onClick={() => savePrijs(prod.id)}>Opslaan</Btn>
-                      <Btn small variant="ghost" onClick={() => setEditing(null)}>✕</Btn>
-                    </div>
+                  {varianten.length > 0 ? (
+                    <>
+                      <Badge color="#27AE60">Prijsmatrix actief</Badge>
+                      <Btn small variant="ghost" onClick={() => setExpandedProd(isExpanded ? null : prod.id)}>{isExpanded ? "▲ Sluiten" : "▼ Matrix bekijken"}</Btn>
+                    </>
                   ) : (
                     <>
-                      <Badge color="var(--ml-accent)">€ {(prod.prijs_per_m2 || 0).toFixed(2).replace(".", ",")} / m²</Badge>
-                      <Btn small variant="outline" onClick={() => { setEditing(prod.id); setPrijsM2(String(prod.prijs_per_m2 || 0)); }}>Prijs wijzigen</Btn>
+                      {editing === prod.id ? (
+                        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                          <Input label="Fallback €/m²" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 120 }} />
+                          <Btn small onClick={() => savePrijs(prod.id)}>Opslaan</Btn>
+                          <Btn small variant="ghost" onClick={() => setEditing(null)}>✕</Btn>
+                        </div>
+                      ) : (
+                        <>
+                          {prod.prijs_per_m2 > 0
+                            ? <Badge color="var(--ml-accent)">Fallback: € {prod.prijs_per_m2.toFixed(2).replace(".", ",")} / m²</Badge>
+                            : <Badge color="var(--ml-warning)">Geen prijzen ingesteld</Badge>
+                          }
+                          <Btn small variant="outline" onClick={() => { setEditing(prod.id); setPrijsM2(String(prod.prijs_per_m2 || 0)); }}>Prijs instellen</Btn>
+                        </>
+                      )}
                     </>
-                  )}
-                  {varianten.length > 0 && (
-                    <Btn small variant="ghost" onClick={() => setExpandedProd(isExpanded ? null : prod.id)}>{isExpanded ? "▲ Sluiten" : "▼ Matrix bekijken"}</Btn>
                   )}
                 </div>
               </div>
