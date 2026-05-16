@@ -166,11 +166,12 @@ export function mapInvoiceStatus(wefactStatus) {
     "0": "concept",
     "1": "creditfactuur",
     "2": "openstaand",
-    "3": "betaald",
-    "4": "verlopen",
-    "5": "herinnering",
-    "6": "aanmaning",
-    "7": "incasso",
+    "3": "deels_betaald",
+    "4": "betaald",
+    "5": "verlopen",
+    "6": "herinnering",
+    "7": "aanmaning",
+    "8": "incasso",
   };
   return map[String(wefactStatus)] || "onbekend";
 }

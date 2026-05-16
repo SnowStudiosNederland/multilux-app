@@ -639,8 +639,8 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
           {orderList.map(([orderNr, items]) => {
             const wfCode = items[0]?.wefact_code;
             const wfStatus = items[0]?.wefact_status;
-            const wfStatusKleur = { openstaand: "#E67E22", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
-            const wfStatusLabel = { openstaand: "Openstaand", betaald: "Betaald", verlopen: "Verlopen", herinnering: "Herinnering", aanmaning: "Aanmaning" };
+            const wfStatusKleur = { openstaand: "#E67E22", deels_betaald: "#F39C12", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
+            const wfStatusLabel = { openstaand: "Openstaand", deels_betaald: "Deels betaald", betaald: "Betaald", verlopen: "Verlopen", herinnering: "Herinnering", aanmaning: "Aanmaning" };
             const toonWfStatus = wfStatus && wfStatus !== "geen" && wfStatus !== "concept";
             return (
             <Card key={orderNr} style={{ padding: 20 }}>
@@ -962,12 +962,14 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
                     {b.wefact_code && <div style={{ fontSize: 11, marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <Badge color={
                         b.wefact_status === "betaald" ? "#27AE60" : 
+                        b.wefact_status === "deels_betaald" ? "#F39C12" :
                         b.wefact_status === "openstaand" ? "#E67E22" : 
                         b.wefact_status === "verlopen" || b.wefact_status === "aanmaning" ? "#E74C3C" : 
                         b.wefact_status === "concept" ? "#999" : "#999"
                       }>{
                         b.wefact_status === "concept" ? "Concept" :
                         b.wefact_status === "openstaand" ? "Verstuurd" :
+                        b.wefact_status === "deels_betaald" ? "Deels betaald" :
                         b.wefact_status === "betaald" ? "Betaald" :
                         b.wefact_status === "verlopen" ? "Verlopen" :
                         b.wefact_status === "herinnering" ? "Herinnering" :
@@ -1714,7 +1716,6 @@ export default function MultiluxApp() {
       try {
         const invoice = await getInvoice(code);
         if (invoice) {
-          alert("WeFact Status=" + invoice.Status);
           const status = mapInvoiceStatus(invoice.Status);
           await supabase.from("bestellingen").update({ wefact_status: status }).eq("wefact_code", code);
         }
