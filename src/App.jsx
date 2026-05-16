@@ -1636,7 +1636,7 @@ function AdminPrijzen({ producten, onRefresh }) {
     if (!prod.prijsmatrix?.varianten) return [];
     return prod.prijsmatrix.varianten.map(v => {
       const sections = v.data || [];
-      const isBO = sections[0]?.type === "breedte_only" || (sections[0]?.rijen?.[0]?.breedte !== undefined && sections[0]?.rijen?.[0]?.hoogte === undefined);
+      const isBO = sections[0]?.type === "breedte_only" || (sections[0]?.prijsgroepen && !sections[0]?.breedtes) || (sections[0]?.rijen?.[0]?.breedte !== undefined && sections[0]?.rijen?.[0]?.hoogte === undefined);
       const pgs = isBO ? (sections[0]?.prijsgroepen || []) : sections.map(s => s.prijsgroep).filter(Boolean);
       const cnt = isBO ? (sections[0]?.rijen?.length || 0) * pgs.length : sections.reduce((s, sec) => s + (sec.rijen?.length || 0) * (sec.breedtes?.length || 0), 0);
       return { naam: v.naam, prijsgroepen: pgs, aantalPrijzen: cnt, isBreedteOnly: isBO };
@@ -1704,7 +1704,9 @@ function AdminPrijzen({ producten, onRefresh }) {
                 {expandedVar !== null && vars[expandedVar] && (() => {
                   const v = vars[expandedVar];
                   const secs = v.data || [];
-                  const isBO = secs[0]?.type === "breedte_only" || (secs[0]?.rijen?.[0]?.breedte !== undefined && secs[0]?.rijen?.[0]?.hoogte === undefined);
+                  const isBO = secs[0]?.type === "breedte_only" 
+                    || (secs[0]?.prijsgroepen && !secs[0]?.breedtes) 
+                    || (secs[0]?.rijen?.[0]?.breedte !== undefined && secs[0]?.rijen?.[0]?.hoogte === undefined);
                   return (
                     <div style={{ padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
