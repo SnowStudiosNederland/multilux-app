@@ -164,13 +164,13 @@ export async function downloadInvoicePDF(invoiceCode) {
 export function mapInvoiceStatus(wefactStatus) {
   const map = {
     "0": "concept",
-    "1": "openstaand",
-    "2": "betaald",
-    "3": "verlopen",
-    "4": "herinnering",
-    "5": "aanmaning",
-    "6": "incasso",
-    "7": "gecrediteerd",
+    "1": "creditfactuur",
+    "2": "openstaand",
+    "3": "betaald",
+    "4": "verlopen",
+    "5": "herinnering",
+    "6": "aanmaning",
+    "7": "incasso",
   };
-  return map[wefactStatus] || "onbekend";
+  return map[String(wefactStatus)] || "onbekend";
 }
