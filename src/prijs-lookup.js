@@ -26,7 +26,9 @@ export function zoekPrijs(product, variantNaam, prijsgroep, breedteMm, hoogteMm)
   }
 
   // Type 1: Breedte-only (rolgordijnen)
-  if (variant.data?.[0]?.type === "breedte_only") {
+  const isBreedteOnly = variant.data?.[0]?.type === "breedte_only" || 
+    (variant.data?.[0]?.rijen?.[0]?.breedte !== undefined && variant.data?.[0]?.rijen?.[0]?.hoogte === undefined);
+  if (isBreedteOnly) {
     return zoekPrijsBreedteOnly(variant.data[0], prijsgroep, breedteCm);
   }
 

@@ -323,7 +323,8 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const prijsgroepen = variant ? getPrijsgroepen(gekozenProduct, variant) : [];
 
   // Detecteer of het product breedte-only is (rolgordijnen)
-  const isBreedteOnly = gekozenProduct?.prijsmatrix?.varianten?.find(v => v.naam === variant)?.data?.[0]?.type === "breedte_only";
+  const selVar = gekozenProduct?.prijsmatrix?.varianten?.find(v => v.naam === variant);
+  const isBreedteOnly = selVar?.data?.[0]?.type === "breedte_only" || (selVar?.data?.[0]?.rijen?.[0]?.breedte !== undefined && selVar?.data?.[0]?.rijen?.[0]?.hoogte === undefined);
 
   // Prijsberekening via matrix lookup, fallback naar m²
   const berekenPrijs = (b, h, prod, var_, pg) => {
@@ -1544,7 +1545,8 @@ function AdminPrijzen({ producten, onRefresh }) {
     if (!editMatrix) return;
     const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
     const section = m.matrix.varianten[varIdx].data[secIdx];
-    if (section.type === "breedte_only") {
+    const cellIsBO = section.type === "breedte_only" || (section.rijen?.[0]?.breedte !== undefined && section.rijen?.[0]?.hoogte === undefined);
+    if (cellIsBO) {
       const pg = section.prijsgroepen[colIdx];
       m.matrix.varianten[varIdx].data[secIdx].rijen[rijIdx].prijzen[pg] = +value || 0;
     } else {
@@ -1565,11 +1567,12 @@ function AdminPrijzen({ producten, onRefresh }) {
     const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
     const sec = m.matrix.varianten[varIdx].data[secIdx];
     const last = sec.rijen[sec.rijen.length - 1];
-    if (sec.type === "breedte_only") {
-      const prijzen = {}; sec.prijsgroepen.forEach(pg => prijzen[pg] = 0);
+    const secIsBO = sec.type === "breedte_only" || (sec.rijen?.[0]?.breedte !== undefined && sec.rijen?.[0]?.hoogte === undefined);
+    if (secIsBO) {
+      const prijzen = {}; (sec.prijsgroepen || []).forEach(pg => prijzen[pg] = 0);
       sec.rijen.push({ breedte: (last?.breedte || 0) + 10, prijzen });
     } else {
-      sec.rijen.push({ hoogte: (last?.hoogte || 0) + 20, prijzen: new Array(sec.breedtes.length).fill(0) });
+      sec.rijen.push({ hoogte: (last?.hoogte || 0) + 20, prijzen: new Array((sec.breedtes || []).length).fill(0) });
     }
     setEditMatrix(m);
   };
@@ -1578,8 +1581,10 @@ function AdminPrijzen({ producten, onRefresh }) {
     if (!editMatrix) return;
     const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
     const sec = m.matrix.varianten[varIdx].data[secIdx];
-    if (sec.type === "breedte_only") {
-      const pg = "PG" + (sec.prijsgroepen.length + 1);
+    const secIsBO2 = sec.type === "breedte_only" || (sec.rijen?.[0]?.breedte !== undefined && sec.rijen?.[0]?.hoogte === undefined);
+    if (secIsBO2) {
+      const pg = "PG" + ((sec.prijsgroepen || []).length + 1);
+      if (!sec.prijsgroepen) sec.prijsgroepen = [];
       sec.prijsgroepen.push(pg);
       sec.rijen.forEach(r => r.prijzen[pg] = 0);
     } else {
@@ -1631,7 +1636,7 @@ function AdminPrijzen({ producten, onRefresh }) {
     if (!prod.prijsmatrix?.varianten) return [];
     return prod.prijsmatrix.varianten.map(v => {
       const sections = v.data || [];
-      const isBO = sections[0]?.type === "breedte_only";
+      const isBO = sections[0]?.type === "breedte_only" || (sections[0]?.rijen?.[0]?.breedte !== undefined && sections[0]?.rijen?.[0]?.hoogte === undefined);
       const pgs = isBO ? (sections[0]?.prijsgroepen || []) : sections.map(s => s.prijsgroep).filter(Boolean);
       const cnt = isBO ? (sections[0]?.rijen?.length || 0) * pgs.length : sections.reduce((s, sec) => s + (sec.rijen?.length || 0) * (sec.breedtes?.length || 0), 0);
       return { naam: v.naam, prijsgroepen: pgs, aantalPrijzen: cnt, isBreedteOnly: isBO };
@@ -1699,7 +1704,7 @@ function AdminPrijzen({ producten, onRefresh }) {
                 {expandedVar !== null && vars[expandedVar] && (() => {
                   const v = vars[expandedVar];
                   const secs = v.data || [];
-                  const isBO = secs[0]?.type === "breedte_only";
+                  const isBO = secs[0]?.type === "breedte_only" || (secs[0]?.rijen?.[0]?.breedte !== undefined && secs[0]?.rijen?.[0]?.hoogte === undefined);
                   return (
                     <div style={{ padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
