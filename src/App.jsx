@@ -559,9 +559,12 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
   const downloadPDF = async (orderNr, items) => {
     // Probeer eerst de factuur uit WeFact te downloaden
     const wefactCode = items[0]?.wefact_code;
+    alert("wefact_code: " + (wefactCode || "LEEG"));
     if (wefactCode) {
       try {
-        const { base64, filename } = await downloadInvoicePDF(wefactCode);
+        const result = await downloadInvoicePDF(wefactCode);
+        alert("WeFact result: base64 lengte=" + (result.base64?.length || 0) + ", filename=" + result.filename);
+        const { base64, filename } = result;
         const byteChars = atob(base64);
         const byteArray = new Uint8Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
@@ -571,7 +574,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
         return;
-      } catch (e) { console.warn("WeFact PDF niet beschikbaar:", e.message); }
+      } catch (e) { alert("WeFact PDF fout: " + e.message); }
     }
 
     // Fallback: lokale PDF genereren
