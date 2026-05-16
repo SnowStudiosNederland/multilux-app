@@ -664,7 +664,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
               </div>
               {items[0].opmerking && <div style={{ marginTop: 10, fontSize: 12, color: "var(--ml-text-light)", fontStyle: "italic", padding: "6px 10px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>💬 {items[0].opmerking}</div>}
             </Card>
-          );})
+          )})}
         </div>
       )}
     </div>
