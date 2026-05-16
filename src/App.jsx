@@ -1714,6 +1714,7 @@ export default function MultiluxApp() {
       try {
         const invoice = await getInvoice(code);
         if (invoice) {
+          alert("WeFact Status=" + invoice.Status);
           const status = mapInvoiceStatus(invoice.Status);
           await supabase.from("bestellingen").update({ wefact_status: status }).eq("wefact_code", code);
         }
