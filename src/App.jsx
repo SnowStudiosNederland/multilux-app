@@ -1515,135 +1515,240 @@ function AdminPrijzen({ producten, onRefresh }) {
   const [editing, setEditing] = useState(null);
   const [prijsM2, setPrijsM2] = useState("");
   const [expandedProd, setExpandedProd] = useState(null);
+  const [expandedVar, setExpandedVar] = useState(null);
+  const [editMatrix, setEditMatrix] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [newVarNaam, setNewVarNaam] = useState("");
+  const [newVarType, setNewVarType] = useState("2d");
 
-  const savePrijs = async (prodId) => {
-    await supabase.from("producten").update({ prijs_per_m2: +prijsM2 || 0 }).eq("id", prodId);
-    setEditing(null);
-    onRefresh();
+  const savePrijs = async (prodId) => { await supabase.from("producten").update({ prijs_per_m2: +prijsM2 || 0 }).eq("id", prodId); setEditing(null); onRefresh(); };
+
+  const startEditMatrix = (prod, varIdx) => {
+    const matrix = JSON.parse(JSON.stringify(prod.prijsmatrix || { varianten: [] }));
+    setEditMatrix({ prodId: prod.id, matrix, varIdx });
+    setExpandedVar(varIdx);
+  };
+
+  const saveMatrix = async () => {
+    if (!editMatrix) return;
+    setSaving(true);
+    await supabase.from("producten").update({ prijsmatrix: editMatrix.matrix }).eq("id", editMatrix.prodId);
+    setSaving(false); setEditMatrix(null); onRefresh();
+  };
+
+  const updateCell = (varIdx, secIdx, rijIdx, colIdx, value) => {
+    if (!editMatrix) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    const section = m.matrix.varianten[varIdx].data[secIdx];
+    if (section.type === "breedte_only") {
+      const pg = section.prijsgroepen[colIdx];
+      m.matrix.varianten[varIdx].data[secIdx].rijen[rijIdx].prijzen[pg] = +value || 0;
+    } else {
+      m.matrix.varianten[varIdx].data[secIdx].rijen[rijIdx].prijzen[colIdx] = +value || 0;
+    }
+    setEditMatrix(m);
+  };
+
+  const updateRowKey = (varIdx, secIdx, rijIdx, field, value) => {
+    if (!editMatrix) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    m.matrix.varianten[varIdx].data[secIdx].rijen[rijIdx][field] = +value;
+    setEditMatrix(m);
+  };
+
+  const addRow = (varIdx, secIdx) => {
+    if (!editMatrix) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    const sec = m.matrix.varianten[varIdx].data[secIdx];
+    const last = sec.rijen[sec.rijen.length - 1];
+    if (sec.type === "breedte_only") {
+      const prijzen = {}; sec.prijsgroepen.forEach(pg => prijzen[pg] = 0);
+      sec.rijen.push({ breedte: (last?.breedte || 0) + 10, prijzen });
+    } else {
+      sec.rijen.push({ hoogte: (last?.hoogte || 0) + 20, prijzen: new Array(sec.breedtes.length).fill(0) });
+    }
+    setEditMatrix(m);
+  };
+
+  const addColumn = (varIdx, secIdx) => {
+    if (!editMatrix) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    const sec = m.matrix.varianten[varIdx].data[secIdx];
+    if (sec.type === "breedte_only") {
+      const pg = "PG" + (sec.prijsgroepen.length + 1);
+      sec.prijsgroepen.push(pg);
+      sec.rijen.forEach(r => r.prijzen[pg] = 0);
+    } else {
+      const lastB = sec.breedtes[sec.breedtes.length - 1] || 0;
+      sec.breedtes.push((typeof lastB === "number" ? lastB : parseInt(lastB)) + 20);
+      sec.rijen.forEach(r => r.prijzen.push(0));
+    }
+    setEditMatrix(m);
+  };
+
+  const removeRow = (varIdx, secIdx, rijIdx) => {
+    if (!editMatrix) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    m.matrix.varianten[varIdx].data[secIdx].rijen.splice(rijIdx, 1);
+    setEditMatrix(m);
+  };
+
+  const addVariant = (prodId) => {
+    if (!newVarNaam.trim()) return;
+    const prod = producten.find(p => p.id === prodId);
+    const matrix = JSON.parse(JSON.stringify(prod?.prijsmatrix || { varianten: [] }));
+    if (!matrix.varianten) matrix.varianten = [];
+    matrix.varianten.push({
+      naam: newVarNaam.trim(), sheet: newVarNaam.trim(),
+      data: newVarType === "breedte_only"
+        ? [{ type: "breedte_only", prijsgroepen: ["Prijsgroep 1"], rijen: [{ breedte: 60, prijzen: { "Prijsgroep 1": 0 } }] }]
+        : [{ prijsgroep: "PG1", breedtes: [60, 80, 100], rijen: [{ hoogte: 100, prijzen: [0, 0, 0] }] }]
+    });
+    setEditMatrix({ prodId, matrix, varIdx: matrix.varianten.length - 1 });
+    setNewVarNaam(""); setExpandedProd(prodId); setExpandedVar(matrix.varianten.length - 1);
+  };
+
+  const removeVariant = (varIdx) => {
+    if (!editMatrix || !confirm("Variant en alle prijzen verwijderen?")) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    m.matrix.varianten.splice(varIdx, 1);
+    setEditMatrix(m); setExpandedVar(null);
+  };
+
+  const addSection = (varIdx) => {
+    if (!editMatrix) return;
+    const m = { ...editMatrix, matrix: JSON.parse(JSON.stringify(editMatrix.matrix)) };
+    const existing = m.matrix.varianten[varIdx].data.map(s => s.prijsgroep).filter(Boolean);
+    m.matrix.varianten[varIdx].data.push({ prijsgroep: "PG" + (existing.length + 1), breedtes: [60, 80, 100], rijen: [{ hoogte: 100, prijzen: [0, 0, 0] }] });
+    setEditMatrix(m);
   };
 
   const getVariantInfo = (prod) => {
     if (!prod.prijsmatrix?.varianten) return [];
     return prod.prijsmatrix.varianten.map(v => {
       const sections = v.data || [];
-      const isBreedteOnly = sections[0]?.type === "breedte_only";
-      const prijsgroepen = isBreedteOnly
-        ? (sections[0]?.prijsgroepen || [])
-        : sections.map(s => s.prijsgroep).filter(Boolean);
-      const aantalPrijzen = isBreedteOnly
-        ? (sections[0]?.rijen?.length || 0) * prijsgroepen.length
-        : sections.reduce((sum, s) => sum + (s.rijen?.length || 0) * (s.breedtes?.length || 0), 0);
-      return { naam: v.naam, prijsgroepen, aantalPrijzen, isBreedteOnly, sections };
+      const isBO = sections[0]?.type === "breedte_only";
+      const pgs = isBO ? (sections[0]?.prijsgroepen || []) : sections.map(s => s.prijsgroep).filter(Boolean);
+      const cnt = isBO ? (sections[0]?.rijen?.length || 0) * pgs.length : sections.reduce((s, sec) => s + (sec.rijen?.length || 0) * (sec.breedtes?.length || 0), 0);
+      return { naam: v.naam, prijsgroepen: pgs, aantalPrijzen: cnt, isBreedteOnly: isBO };
     });
   };
 
+  const cs = { padding: "3px 6px", fontSize: 11, border: "1px solid var(--ml-border)", textAlign: "right" };
+  const is = { width: 65, padding: "3px 4px", fontSize: 11, border: "1px solid var(--ml-border)", borderRadius: 4, textAlign: "right", fontFamily: "monospace" };
+  const hs = { ...cs, fontWeight: 600, background: "var(--ml-surface-alt)", textAlign: "center" };
+
   return (
-    <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
+    <div className="ml-page" style={{ padding: 40, maxWidth: 1400, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Prijzen</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer de m²-prijzen en bekijk de prijsmatrices per product.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer prijsmatrices, varianten en m\u00b2-fallback prijzen.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {producten.map(prod => {
           const varianten = getVariantInfo(prod);
-          const isExpanded = expandedProd === prod.id;
+          const isExp = expandedProd === prod.id;
+          const isEd = editMatrix?.prodId === prod.id;
+          const matrixData = isEd ? editMatrix.matrix : prod.prijsmatrix;
+          const vars = matrixData?.varianten || [];
           return (
             <Card key={prod.id} style={{ padding: 24 }}>
-              <div className="ml-prijs-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isExpanded ? 20 : 0 }}>
+              <div className="ml-prijs-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isExp ? 20 : 0 }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>
-                    {PRODUCT_IMAGES[prod.naam] ? <img src={PRODUCT_IMAGES[prod.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod.icon}</div>}
-                  </div>
+                  <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod.naam] ? <img src={PRODUCT_IMAGES[prod.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod.icon}</div>}</div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 16 }}>{prod.naam}</div>
-                    <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>
-                      {varianten.length > 0
-                        ? <span>{varianten.length} {varianten.length === 1 ? "variant" : "varianten"} · {varianten.reduce((s, v) => s + v.aantalPrijzen, 0)} prijspunten</span>
-                        : <span>Geen prijsmatrix geladen</span>
-                      }
-                    </div>
+                    <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{varianten.length > 0 ? <span>{varianten.length} varianten \u00b7 {varianten.reduce((s, v) => s + v.aantalPrijzen, 0)} prijspunten</span> : <span>Geen prijsmatrix</span>}</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  {varianten.length > 0 ? (
-                    <>
-                      <Badge color="#27AE60">Prijsmatrix actief</Badge>
-                      <Btn small variant="ghost" onClick={() => setExpandedProd(isExpanded ? null : prod.id)}>{isExpanded ? "▲ Sluiten" : "▼ Matrix bekijken"}</Btn>
-                    </>
-                  ) : (
-                    <>
-                      {editing === prod.id ? (
-                        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                          <Input label="Fallback €/m²" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 120 }} />
-                          <Btn small onClick={() => savePrijs(prod.id)}>Opslaan</Btn>
-                          <Btn small variant="ghost" onClick={() => setEditing(null)}>✕</Btn>
-                        </div>
-                      ) : (
-                        <>
-                          {prod.prijs_per_m2 > 0
-                            ? <Badge color="var(--ml-accent)">Fallback: € {prod.prijs_per_m2.toFixed(2).replace(".", ",")} / m²</Badge>
-                            : <Badge color="var(--ml-warning)">Geen prijzen ingesteld</Badge>
-                          }
-                          <Btn small variant="outline" onClick={() => { setEditing(prod.id); setPrijsM2(String(prod.prijs_per_m2 || 0)); }}>Prijs instellen</Btn>
-                        </>
-                      )}
-                    </>
-                  )}
+                <div className="ml-prijs-card-btns" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  {varianten.length > 0 ? (<>
+                    <Badge color="#27AE60">Prijsmatrix actief</Badge>
+                    <Btn small variant="outline" onClick={() => { setExpandedProd(isExp ? null : prod.id); setExpandedVar(null); if (!isEd) setEditMatrix(null); }}>{isExp ? "\u25b2 Sluiten" : "\u25bc Bewerken"}</Btn>
+                  </>) : (<>
+                    {editing === prod.id ? (
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                        <Input label="Fallback \u20ac/m\u00b2" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 120 }} />
+                        <Btn small onClick={() => savePrijs(prod.id)}>Opslaan</Btn>
+                        <Btn small variant="ghost" onClick={() => setEditing(null)}>\u2715</Btn>
+                      </div>
+                    ) : (<>
+                      {prod.prijs_per_m2 > 0 ? <Badge color="var(--ml-accent)">Fallback: \u20ac {prod.prijs_per_m2.toFixed(2).replace(".", ",")} / m\u00b2</Badge> : <Badge color="var(--ml-warning)">Geen prijzen</Badge>}
+                      <Btn small variant="outline" onClick={() => { setEditing(prod.id); setPrijsM2(String(prod.prijs_per_m2 || 0)); }}>Prijs instellen</Btn>
+                    </>)}
+                    <Btn small variant="outline" onClick={() => { setExpandedProd(prod.id); }}>+ Matrix toevoegen</Btn>
+                  </>)}
                 </div>
               </div>
-
-              {isExpanded && varianten.map((v, vi) => (
-                <div key={vi} style={{ marginTop: vi === 0 ? 0 : 20, padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{v.naam}</div>
-                  <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginBottom: 12 }}>
-                    Prijsgroepen: {v.prijsgroepen.join(", ")} · {v.aantalPrijzen} prijspunten · {v.isBreedteOnly ? "Breedte-only" : "2D matrix (breedte × hoogte)"}
-                  </div>
-                  {v.isBreedteOnly ? (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ fontSize: 11, borderCollapse: "collapse", width: "100%" }}>
-                        <thead>
-                          <tr style={{ background: "var(--ml-bg)" }}>
-                            <th style={{ padding: "6px 10px", textAlign: "left", borderBottom: "1px solid var(--ml-border)" }}>Breedte (cm)</th>
-                            {v.prijsgroepen.map((pg, i) => <th key={i} style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--ml-border)" }}>{pg}</th>)}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(v.sections[0]?.rijen || []).slice(0, 20).map((rij, ri) => (
-                            <tr key={ri} style={{ borderBottom: "1px solid var(--ml-border)" }}>
-                              <td style={{ padding: "4px 10px", fontWeight: 600 }}>{rij.breedte}</td>
-                              {v.prijsgroepen.map((pg, i) => <td key={i} style={{ padding: "4px 10px", textAlign: "right" }}>€ {(rij.prijzen[pg] || 0).toFixed(2)}</td>)}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {(v.sections[0]?.rijen || []).length > 20 && <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 8 }}>... en {(v.sections[0]?.rijen || []).length - 20} meer</div>}
-                    </div>
-                  ) : (
-                    v.sections.map((section, si) => (
-                      <div key={si} style={{ marginTop: si > 0 ? 16 : 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{section.prijsgroep}</div>
-                        <div style={{ overflowX: "auto" }}>
-                          <table style={{ fontSize: 11, borderCollapse: "collapse", width: "100%" }}>
-                            <thead>
-                              <tr style={{ background: "var(--ml-bg)" }}>
-                                <th style={{ padding: "4px 8px", textAlign: "left", borderBottom: "1px solid var(--ml-border)" }}>H\B</th>
-                                {(section.breedtes || []).map((b, i) => <th key={i} style={{ padding: "4px 8px", textAlign: "right", borderBottom: "1px solid var(--ml-border)" }}>{b}</th>)}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(section.rijen || []).slice(0, 15).map((rij, ri) => (
-                                <tr key={ri} style={{ borderBottom: "1px solid var(--ml-border)" }}>
-                                  <td style={{ padding: "3px 8px", fontWeight: 600 }}>{rij.hoogte}</td>
-                                  {(rij.prijzen || []).map((p, i) => <td key={i} style={{ padding: "3px 8px", textAlign: "right" }}>{p ? "€" + p.toFixed(0) : "—"}</td>)}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          {(section.rijen || []).length > 15 && <div style={{ fontSize: 11, color: "var(--ml-text-light)", marginTop: 4 }}>... en {(section.rijen || []).length - 15} meer rijen</div>}
+              {isExp && (<div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                  {vars.map((v, vi) => (
+                    <button key={vi} onClick={() => { if (!isEd) startEditMatrix(prod, vi); else setExpandedVar(vi); }}
+                      style={{ padding: "8px 16px", borderRadius: 8, border: expandedVar === vi ? "2px solid var(--ml-primary)" : "1.5px solid var(--ml-border)", background: expandedVar === vi ? "var(--ml-surface-alt)" : "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: expandedVar === vi ? 600 : 400 }}>
+                      {v.naam}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 20 }}>
+                  <Input label="Nieuwe variant" value={newVarNaam} onChange={setNewVarNaam} placeholder="bijv. Perfect Fit 25mm" style={{ flex: 1 }} />
+                  <Input label="Type" value={newVarType} onChange={setNewVarType} options={[{ value: "2d", label: "2D (breedte x hoogte)" }, { value: "breedte_only", label: "Alleen breedte" }]} style={{ width: 200 }} />
+                  <Btn small variant="outline" onClick={() => addVariant(prod.id)}>+ Variant</Btn>
+                </div>
+                {expandedVar !== null && vars[expandedVar] && (() => {
+                  const v = vars[expandedVar];
+                  const secs = v.data || [];
+                  const isBO = secs[0]?.type === "breedte_only";
+                  return (
+                    <div style={{ padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{v.naam}</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          {isEd && !isBO && <Btn small variant="outline" onClick={() => addSection(expandedVar)}>+ Prijsgroep</Btn>}
+                          {isEd && <Btn small variant="ghost" onClick={() => removeVariant(expandedVar)} style={{ color: "var(--ml-error)" }}>Verwijderen</Btn>}
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              ))}
+                      {isBO ? (
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ borderCollapse: "collapse" }}>
+                            <thead><tr><th style={hs}>Breedte</th>{secs[0].prijsgroepen.map((pg, i) => <th key={i} style={hs}>{pg}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
+                            <tbody>{secs[0].rijen.map((rij, ri) => (
+                              <tr key={ri}>
+                                <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.breedte} onChange={e => updateRowKey(expandedVar, 0, ri, "breedte", e.target.value)} style={is} /> : rij.breedte}</td>
+                                {secs[0].prijsgroepen.map((pg, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={rij.prijzen[pg] || 0} onChange={e => updateCell(expandedVar, 0, ri, ci, e.target.value)} style={is} /> : <span>\u20ac {(rij.prijzen[pg] || 0).toFixed(2)}</span>}</td>)}
+                                {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, 0, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>\u2715</button></td>}
+                              </tr>
+                            ))}</tbody>
+                          </table>
+                          {isEd && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Btn small variant="outline" onClick={() => addRow(expandedVar, 0)}>+ Rij</Btn><Btn small variant="outline" onClick={() => addColumn(expandedVar, 0)}>+ Kolom</Btn></div>}
+                        </div>
+                      ) : secs.map((sec, si) => (
+                        <div key={si} style={{ marginTop: si > 0 ? 20 : 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{sec.prijsgroep}</div>
+                          <div style={{ overflowX: "auto" }}>
+                            <table style={{ borderCollapse: "collapse" }}>
+                              <thead><tr><th style={hs}>H \\ B</th>{(sec.breedtes || []).map((b, i) => <th key={i} style={hs}>{b}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
+                              <tbody>{(sec.rijen || []).map((rij, ri) => (
+                                <tr key={ri}>
+                                  <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.hoogte} onChange={e => updateRowKey(expandedVar, si, ri, "hoogte", e.target.value)} style={is} /> : rij.hoogte}</td>
+                                  {(rij.prijzen || []).map((p, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={p || 0} onChange={e => updateCell(expandedVar, si, ri, ci, e.target.value)} style={is} /> : <span>{p ? "\u20ac" + p.toFixed(2) : "\u2014"}</span>}</td>)}
+                                  {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, si, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>\u2715</button></td>}
+                                </tr>
+                              ))}</tbody>
+                            </table>
+                            {isEd && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Btn small variant="outline" onClick={() => addRow(expandedVar, si)}>+ Rij</Btn><Btn small variant="outline" onClick={() => addColumn(expandedVar, si)}>+ Kolom</Btn></div>}
+                          </div>
+                        </div>
+                      ))}
+                      {isEd ? (
+                        <div style={{ display: "flex", gap: 8, marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--ml-border)" }}>
+                          <Btn onClick={saveMatrix} disabled={saving}>{saving ? "Opslaan..." : "Matrix opslaan"}</Btn>
+                          <Btn variant="ghost" onClick={() => { setEditMatrix(null); setExpandedVar(null); }}>Annuleren</Btn>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 16 }}><Btn small variant="outline" onClick={() => startEditMatrix(prod, expandedVar)}>\u270f Matrix bewerken</Btn></div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>)}
             </Card>
           );
         })}
@@ -1651,6 +1756,7 @@ function AdminPrijzen({ producten, onRefresh }) {
     </div>
   );
 }
+
 
 function PasswordResetScreen({ onDone }) {
   const [newPw, setNewPw] = useState("");
