@@ -112,9 +112,12 @@ export async function createInvoice({ debtorCode, orderNr, items, producten }) {
     Comment: "Bestelling via Multilux Klantenportaal",
   });
 
+  // Log alle beschikbare velden om het juiste te vinden
+  const inv = invoiceData.invoice || {};
   return {
-    code: invoiceData.invoice?.InvoiceCode || invoiceData.invoice?.Identifier || null,
-    number: invoiceData.invoice?.InvoiceNumber || null,
+    code: inv.InvoiceCode || inv.InvoiceNumber || inv.Identifier || null,
+    number: inv.InvoiceNumber || null,
+    identifier: inv.Identifier || null,
   };
 }
 
@@ -131,19 +134,27 @@ export async function listInvoices(debtorCode) {
 }
 
 export async function downloadInvoicePDF(invoiceCode) {
-  // Probeer eerst met InvoiceCode
+  // Probeer direct met InvoiceCode
   try {
     const data = await wefactCall("invoice", "download", { InvoiceCode: invoiceCode });
     if (data.invoice?.Base64) {
       return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
     }
-  } catch (e) { /* probeer met Identifier */ }
+  } catch (e) { /* niet gevonden, zoek op andere manier */ }
 
-  // Probeer met Identifier
-  const data2 = await wefactCall("invoice", "download", { Identifier: invoiceCode });
-  if (data2.invoice?.Base64) {
-    return { base64: data2.invoice.Base64, filename: data2.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
-  }
+  // Zoek de factuur op via list en gebruik dan het juiste ID
+  try {
+    const listData = await wefactCall("invoice", "list", { searchat: "InvoiceCode", searchfor: invoiceCode });
+    const invoices = listData.invoices || [];
+    if (invoices.length > 0) {
+      const code = invoices[0].InvoiceCode || invoices[0].Identifier;
+      const data = await wefactCall("invoice", "download", { InvoiceCode: code });
+      if (data.invoice?.Base64) {
+        return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${code}.pdf` };
+      }
+    }
+  } catch (e) { /* ook niet gevonden */ }
+
   throw new Error("Factuur niet gevonden");
 }
 

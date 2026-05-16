@@ -365,7 +365,9 @@ function BestelForm({ profiel, producten, onBesteld }) {
       }
       if (wfCode) {
         const wfResult = await createInvoice({ debtorCode: wfCode, orderNr, items: regels, producten });
-        if (wfResult.code) await supabase.from("bestellingen").update({ wefact_code: wfResult.code, wefact_status: "concept" }).eq("order_nr", orderNr);
+        const wfSaveCode = wfResult.code || wfResult.identifier || "";
+        alert("WeFact factuur: code=" + wfResult.code + " number=" + wfResult.number + " identifier=" + wfResult.identifier);
+        if (wfSaveCode) await supabase.from("bestellingen").update({ wefact_code: wfSaveCode, wefact_status: "concept" }).eq("order_nr", orderNr);
       }
     } catch (e) { console.warn("WeFact:", e.message); }
     setLoading(false);
