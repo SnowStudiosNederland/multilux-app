@@ -1710,7 +1710,7 @@ export default function MultiluxApp() {
   const onStatusUpdate = async (id, status) => { await supabase.from("bestellingen").update({ status, updated_at: new Date().toISOString() }).eq("id", id); await loadBestellingen(profiel); };
 
   const onSyncWeFact = async () => {
-    const metWefact = bestellingen.filter(b => b.wefact_code && b.wefact_status !== "betaald");
+    const metWefact = bestellingen.filter(b => b.wefact_code);
     const codes = [...new Set(metWefact.map(b => b.wefact_code))];
     for (const code of codes) {
       try {
