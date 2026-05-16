@@ -1722,21 +1722,25 @@ function AdminPrijzen({ producten, onRefresh }) {
                         </div>
                       </div>
                       {isEd && <div style={{ padding: "10px 14px", borderRadius: 8, background: "#FFF8E1", border: "1px solid #FFE082", fontSize: 12, color: "#7B6B00", marginBottom: 16 }}>💡 Voer alle prijzen <strong>exclusief BTW</strong> in. De BTW wordt automatisch berekend via WeFact.</div>}
-                      {isBO ? (
+                      {isBO ? (() => {
+                        const pgs = secs[0]?.prijsgroepen || secs.map(s => s.prijsgroep).filter(Boolean);
+                        const rijen = secs[0]?.rijen || [];
+                        return (
                         <div style={{ overflowX: "auto" }}>
                           <table style={{ borderCollapse: "collapse" }}>
-                            <thead><tr><th style={hs}>Breedte</th>{secs[0].prijsgroepen.map((pg, i) => <th key={i} style={hs}>{pg}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
-                            <tbody>{secs[0].rijen.map((rij, ri) => (
+                            <thead><tr><th style={hs}>Breedte</th>{pgs.map((pg, i) => <th key={i} style={hs}>{pg}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
+                            <tbody>{rijen.map((rij, ri) => (
                               <tr key={ri}>
                                 <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.breedte} onChange={e => updateRowKey(expandedVar, 0, ri, "breedte", e.target.value)} style={is} /> : rij.breedte}</td>
-                                {secs[0].prijsgroepen.map((pg, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={rij.prijzen[pg] || 0} onChange={e => updateCell(expandedVar, 0, ri, ci, e.target.value)} style={is} /> : <span>€ {(rij.prijzen[pg] || 0).toFixed(2)}</span>}</td>)}
+                                {pgs.map((pg, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={rij.prijzen?.[pg] || rij.prijzen?.[ci] || 0} onChange={e => updateCell(expandedVar, 0, ri, ci, e.target.value)} style={is} /> : <span>€ {(rij.prijzen?.[pg] || rij.prijzen?.[ci] || 0).toFixed(2)}</span>}</td>)}
                                 {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, 0, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>✕</button></td>}
                               </tr>
                             ))}</tbody>
                           </table>
                           {isEd && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Btn small variant="outline" onClick={() => addRow(expandedVar, 0)}>+ Rij</Btn><Btn small variant="outline" onClick={() => addColumn(expandedVar, 0)}>+ Kolom</Btn></div>}
                         </div>
-                      ) : secs.map((sec, si) => (
+                        );
+                      })() : secs.map((sec, si) => (
                         <div key={si} style={{ marginTop: si > 0 ? 20 : 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{sec.prijsgroep}</div>
                           <div style={{ overflowX: "auto" }}>
