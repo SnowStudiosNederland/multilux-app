@@ -633,14 +633,19 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
         <Card style={{ textAlign: "center", padding: "60px 40px", color: "var(--ml-text-light)" }}><div style={{ fontSize: 40, marginBottom: 12 }}>📋</div><p style={{ fontSize: 15 }}>U heeft nog geen bestellingen geplaatst.</p></Card>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {orderList.map(([orderNr, items]) => (
+          {orderList.map(([orderNr, items]) => {
+            const wfCode = items[0]?.wefact_code;
+            const wfStatus = items[0]?.wefact_status;
+            const wfStatusKleur = { concept: "#999", openstaand: "#E67E22", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
+            return (
             <Card key={orderNr} style={{ padding: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 1 ? 16 : 10 }}>
+              <div className="ml-bestelling-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 1 ? 16 : 10 }}>
                 <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>{orderNr} · {fmtDate(items[0].created_at)}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Btn small variant="ghost" onClick={() => downloadPDF(orderNr, items)} style={{ fontSize: 12, padding: "4px 10px" }}>⬇ PDF</Btn>
-                  {items.length > 1 && <span style={{ fontSize: 12, color: "var(--ml-text-light)" }}>{items.length} items</span>}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {wfCode && <Btn small variant="ghost" onClick={() => downloadPDF(orderNr, items)} style={{ fontSize: 12, padding: "4px 10px" }}>⬇ Factuur</Btn>}
+                  {!wfCode && <Btn small variant="ghost" onClick={() => downloadPDF(orderNr, items)} style={{ fontSize: 12, padding: "4px 10px" }}>⬇ PDF</Btn>}
                   <Badge color={statusKleur[items[0].status]}>{items[0].status}</Badge>
+                  {wfStatus && wfStatus !== "geen" && <Badge color={wfStatusKleur[wfStatus] || "#999"}>{wfStatus}</Badge>}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -659,7 +664,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
               </div>
               {items[0].opmerking && <div style={{ marginTop: 10, fontSize: 12, color: "var(--ml-text-light)", fontStyle: "italic", padding: "6px 10px", background: "var(--ml-surface-alt)", borderRadius: 6 }}>💬 {items[0].opmerking}</div>}
             </Card>
-          ))}
+          );})
         </div>
       )}
     </div>
