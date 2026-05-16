@@ -322,6 +322,9 @@ function BestelForm({ profiel, producten, onBesteld }) {
   const kleurPrijsgroep = gekozenKleur?.prijsgroep || "";
   const prijsgroepen = variant ? getPrijsgroepen(gekozenProduct, variant) : [];
 
+  // Detecteer of het product breedte-only is (rolgordijnen)
+  const isBreedteOnly = gekozenProduct?.prijsmatrix?.varianten?.find(v => v.naam === variant)?.data?.[0]?.type === "breedte_only";
+
   // Prijsberekening via matrix lookup, fallback naar m²
   const berekenPrijs = (b, h, prod, var_, pg) => {
     if (!b || !prod) return { prijs: 0, gevonden: false, info: "" };
@@ -495,6 +498,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "var(--ml-primary)" }}>3. Maten invoeren</h3>
         </div>
         <p style={{ fontSize: 13, color: "var(--ml-text-light)", margin: "0 0 16px" }}>Meet de exacte binnenafmetingen van uw raamkozijn in millimeters.</p>
+        {isBreedteOnly && <div style={{ padding: "8px 14px", borderRadius: 8, background: "#E8F5E9", fontSize: 12, color: "#2E7D32", marginBottom: 16 }}>ℹ De prijs voor dit product wordt bepaald op basis van de breedte.</div>}
 
         {/* Opgeslagen standaardmaten */}
         {productId && productMaten.length > 0 && (
@@ -1641,7 +1645,7 @@ function AdminPrijzen({ producten, onRefresh }) {
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 1400, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Prijzen</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer prijsmatrices, varianten en m\u00b2-fallback prijzen.</p>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Beheer prijsmatrices, varianten en m²-fallback prijzen.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {producten.map(prod => {
           const varianten = getVariantInfo(prod);
@@ -1656,22 +1660,22 @@ function AdminPrijzen({ producten, onRefresh }) {
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>{PRODUCT_IMAGES[prod.naam] ? <img src={PRODUCT_IMAGES[prod.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod.icon}</div>}</div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 16 }}>{prod.naam}</div>
-                    <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{varianten.length > 0 ? <span>{varianten.length} varianten \u00b7 {varianten.reduce((s, v) => s + v.aantalPrijzen, 0)} prijspunten</span> : <span>Geen prijsmatrix</span>}</div>
+                    <div style={{ fontSize: 13, color: "var(--ml-text-light)", marginTop: 2 }}>{varianten.length > 0 ? <span>{varianten.length} varianten · {varianten.reduce((s, v) => s + v.aantalPrijzen, 0)} prijspunten</span> : <span>Geen prijsmatrix</span>}</div>
                   </div>
                 </div>
                 <div className="ml-prijs-card-btns" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                   {varianten.length > 0 ? (<>
                     <Badge color="#27AE60">Prijsmatrix actief</Badge>
-                    <Btn small variant="outline" onClick={() => { setExpandedProd(isExp ? null : prod.id); setExpandedVar(null); if (!isEd) setEditMatrix(null); }}>{isExp ? "\u25b2 Sluiten" : "\u25bc Bewerken"}</Btn>
+                    <Btn small variant="outline" onClick={() => { setExpandedProd(isExp ? null : prod.id); setExpandedVar(null); if (!isEd) setEditMatrix(null); }}>{isExp ? "▲ Sluiten" : "▼ Bewerken"}</Btn>
                   </>) : (<>
                     {editing === prod.id ? (
                       <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                        <Input label="Fallback \u20ac/m\u00b2" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 120 }} />
+                        <Input label="Fallback €/m²" type="number" value={prijsM2} onChange={setPrijsM2} placeholder="0" style={{ width: 120 }} />
                         <Btn small onClick={() => savePrijs(prod.id)}>Opslaan</Btn>
-                        <Btn small variant="ghost" onClick={() => setEditing(null)}>\u2715</Btn>
+                        <Btn small variant="ghost" onClick={() => setEditing(null)}>✕</Btn>
                       </div>
                     ) : (<>
-                      {prod.prijs_per_m2 > 0 ? <Badge color="var(--ml-accent)">Fallback: \u20ac {prod.prijs_per_m2.toFixed(2).replace(".", ",")} / m\u00b2</Badge> : <Badge color="var(--ml-warning)">Geen prijzen</Badge>}
+                      {prod.prijs_per_m2 > 0 ? <Badge color="var(--ml-accent)">Fallback: € {prod.prijs_per_m2.toFixed(2).replace(".", ",")} / m²</Badge> : <Badge color="var(--ml-warning)">Geen prijzen</Badge>}
                       <Btn small variant="outline" onClick={() => { setEditing(prod.id); setPrijsM2(String(prod.prijs_per_m2 || 0)); }}>Prijs instellen</Btn>
                     </>)}
                     <Btn small variant="outline" onClick={() => { setExpandedProd(prod.id); }}>+ Matrix toevoegen</Btn>
@@ -1699,7 +1703,12 @@ function AdminPrijzen({ producten, onRefresh }) {
                   return (
                     <div style={{ padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                        <div style={{ fontWeight: 600, fontSize: 15 }}>{v.naam}</div>
+                        {isEd ? (
+                          <input value={v.naam} onChange={e => { const m = JSON.parse(JSON.stringify(editMatrix)); m.matrix.varianten[expandedVar].naam = e.target.value; setEditMatrix(m); }}
+                            style={{ fontWeight: 600, fontSize: 15, border: "1.5px solid var(--ml-border)", borderRadius: 6, padding: "6px 10px", fontFamily: "inherit", width: 300 }} />
+                        ) : (
+                          <div style={{ fontWeight: 600, fontSize: 15 }}>{v.naam}</div>
+                        )}
                         <div style={{ display: "flex", gap: 8 }}>
                           {isEd && !isBO && <Btn small variant="outline" onClick={() => addSection(expandedVar)}>+ Prijsgroep</Btn>}
                           {isEd && <Btn small variant="ghost" onClick={() => removeVariant(expandedVar)} style={{ color: "var(--ml-error)" }}>Verwijderen</Btn>}
@@ -1713,8 +1722,8 @@ function AdminPrijzen({ producten, onRefresh }) {
                             <tbody>{secs[0].rijen.map((rij, ri) => (
                               <tr key={ri}>
                                 <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.breedte} onChange={e => updateRowKey(expandedVar, 0, ri, "breedte", e.target.value)} style={is} /> : rij.breedte}</td>
-                                {secs[0].prijsgroepen.map((pg, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={rij.prijzen[pg] || 0} onChange={e => updateCell(expandedVar, 0, ri, ci, e.target.value)} style={is} /> : <span>\u20ac {(rij.prijzen[pg] || 0).toFixed(2)}</span>}</td>)}
-                                {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, 0, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>\u2715</button></td>}
+                                {secs[0].prijsgroepen.map((pg, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={rij.prijzen[pg] || 0} onChange={e => updateCell(expandedVar, 0, ri, ci, e.target.value)} style={is} /> : <span>€ {(rij.prijzen[pg] || 0).toFixed(2)}</span>}</td>)}
+                                {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, 0, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>✕</button></td>}
                               </tr>
                             ))}</tbody>
                           </table>
@@ -1725,12 +1734,12 @@ function AdminPrijzen({ producten, onRefresh }) {
                           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{sec.prijsgroep}</div>
                           <div style={{ overflowX: "auto" }}>
                             <table style={{ borderCollapse: "collapse" }}>
-                              <thead><tr><th style={hs}>H \\ B</th>{(sec.breedtes || []).map((b, i) => <th key={i} style={hs}>{b}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
+                              <thead><tr><th style={hs}>Hoogte \ Breedte</th>{(sec.breedtes || []).map((b, i) => <th key={i} style={hs}>{isEd ? <input type="number" value={typeof b === "string" ? parseInt(b) : b} onChange={e => { const m = JSON.parse(JSON.stringify(editMatrix)); m.matrix.varianten[expandedVar].data[si].breedtes[i] = +e.target.value; setEditMatrix(m); }} style={{ ...is, width: 55, textAlign: "center" }} /> : b}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
                               <tbody>{(sec.rijen || []).map((rij, ri) => (
                                 <tr key={ri}>
                                   <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.hoogte} onChange={e => updateRowKey(expandedVar, si, ri, "hoogte", e.target.value)} style={is} /> : rij.hoogte}</td>
-                                  {(rij.prijzen || []).map((p, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={p || 0} onChange={e => updateCell(expandedVar, si, ri, ci, e.target.value)} style={is} /> : <span>{p ? "\u20ac" + p.toFixed(2) : "\u2014"}</span>}</td>)}
-                                  {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, si, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>\u2715</button></td>}
+                                  {(rij.prijzen || []).map((p, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={p || 0} onChange={e => updateCell(expandedVar, si, ri, ci, e.target.value)} style={is} /> : <span>{p ? "€" + p.toFixed(2) : "—"}</span>}</td>)}
+                                  {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, si, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>✕</button></td>}
                                 </tr>
                               ))}</tbody>
                             </table>
@@ -1744,7 +1753,7 @@ function AdminPrijzen({ producten, onRefresh }) {
                           <Btn variant="ghost" onClick={() => { setEditMatrix(null); setExpandedVar(null); }}>Annuleren</Btn>
                         </div>
                       ) : (
-                        <div style={{ marginTop: 16 }}><Btn small variant="outline" onClick={() => startEditMatrix(prod, expandedVar)}>\u270f Matrix bewerken</Btn></div>
+                        <div style={{ marginTop: 16 }}><Btn small variant="outline" onClick={() => startEditMatrix(prod, expandedVar)}>✏ Matrix bewerken</Btn></div>
                       )}
                     </div>
                   );
