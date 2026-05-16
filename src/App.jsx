@@ -562,6 +562,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
     if (wefactCode) {
       try {
         const { base64, filename } = await downloadInvoicePDF(wefactCode);
+        alert("WeFact PDF gelukt! " + filename + " (" + base64.length + " bytes)");
         const byteChars = atob(base64);
         const byteArray = new Uint8Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
@@ -571,7 +572,9 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
         return;
-      } catch (e) { console.warn("WeFact PDF:", e.message); }
+      } catch (e) { alert("WeFact PDF mislukt: " + e.message + " (code: " + wefactCode + ")"); }
+    } else {
+      alert("Geen wefact_code op deze bestelling");
     }
 
     // Fallback: lokale PDF genereren
