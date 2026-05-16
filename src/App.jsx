@@ -37,6 +37,13 @@ const responsiveCSS = `
   .ml-bestelling-btns { flex-wrap: wrap !important; gap: 6px !important; }
   h1 { font-size: 24px !important; }
 }
+
+/* Smooth card hover */
+.ml-card-hover { transition: box-shadow 0.2s ease, transform 0.2s ease; }
+.ml-card-hover:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); transform: translateY(-1px); }
+
+/* Smooth button transitions */
+button { transition: all 0.15s ease !important; }
 `;
 
 function useIsMobile() {
@@ -102,7 +109,43 @@ function Card({ children, style }) {
 }
 
 function Loader() {
-  return (<div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: 60 }}><div style={{ width: 36, height: 36, border: "3px solid var(--ml-border)", borderTopColor: "var(--ml-primary)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div>);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 60, gap: 16 }}>
+      <div style={{ width: 40, height: 40, border: "3px solid var(--ml-border)", borderTopColor: "var(--ml-accent)", borderRadius: "50%", animation: "spin 0.7s ease-in-out infinite" }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function PageTransition({ pageKey, children }) {
+  const [visible, setVisible] = useState(false);
+  const [currentKey, setCurrentKey] = useState(pageKey);
+  const [content, setContent] = useState(children);
+
+  useEffect(() => {
+    if (pageKey !== currentKey) {
+      setVisible(false);
+      const timer = setTimeout(() => {
+        setCurrentKey(pageKey);
+        setContent(children);
+        setVisible(true);
+      }, 150);
+      return () => clearTimeout(timer);
+    } else {
+      setVisible(true);
+      setContent(children);
+    }
+  }, [pageKey, children]);
+
+  return (
+    <div style={{
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(12px)",
+      transition: "opacity 0.25s ease-out, transform 0.25s ease-out",
+    }}>
+      {content}
+    </div>
+  );
 }
 
 function LoginPage({ onLogin }) {
@@ -1729,7 +1772,11 @@ export default function MultiluxApp() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); setProfiel(null); setSession(null); };
 
-  if (loading) return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ml-bg)" }}><Loader /></div></>);
+  if (loading) return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#F5F2EE", fontFamily: vars.fontFamily }}>
+    <img src={ML_LOGO_DARK} alt="Multilux" style={{ width: 180, marginBottom: 32, opacity: 0.8 }} />
+    <div style={{ width: 36, height: 36, border: "3px solid var(--ml-border)", borderTopColor: "var(--ml-accent)", borderRadius: "50%", animation: "spin 0.7s ease-in-out infinite" }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div></>);
   if (showPasswordReset && session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><PasswordResetScreen onDone={() => setShowPasswordReset(false)} /></div></>);
   if (!session) return (<><style>{fonts}{responsiveCSS}</style><div style={vars}><LoginPage onLogin={() => {}} /></div></>);
 
@@ -1754,5 +1801,5 @@ export default function MultiluxApp() {
     }
   };
 
-  return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}><Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} aantalWachtend={0} isMobile={isMobile} /><div style={{ flex: 1, overflowY: "auto" }}>{renderPage()}</div></div></>);
+  return (<><style>{fonts}{responsiveCSS}</style><div style={{ ...vars, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: "100vh", background: "var(--ml-bg)", fontFamily: vars.fontFamily }}><Sidebar profiel={profiel} actief={pagina} onNav={setPagina} onLogout={handleLogout} aantalWachtend={0} isMobile={isMobile} /><div style={{ flex: 1, overflowY: "auto" }}><PageTransition pageKey={pagina}>{renderPage()}</PageTransition></div></div></>);
 }
