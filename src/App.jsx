@@ -365,8 +365,7 @@ function BestelForm({ profiel, producten, onBesteld }) {
       }
       if (wfCode) {
         const wfResult = await createInvoice({ debtorCode: wfCode, orderNr, items: regels, producten });
-        const wfSaveCode = wfResult.code || wfResult.identifier || "";
-        alert("WeFact factuur: code=" + wfResult.code + " number=" + wfResult.number + " identifier=" + wfResult.identifier);
+        const wfSaveCode = wfResult.identifier || wfResult.code || "";
         if (wfSaveCode) await supabase.from("bestellingen").update({ wefact_code: wfSaveCode, wefact_status: "concept" }).eq("order_nr", orderNr);
       }
     } catch (e) { console.warn("WeFact:", e.message); }
@@ -559,14 +558,10 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
   const orderList = Object.entries(orders).sort((a, b) => new Date(b[1][0].created_at) - new Date(a[1][0].created_at));
 
   const downloadPDF = async (orderNr, items) => {
-    // Probeer eerst de factuur uit WeFact te downloaden
     const wefactCode = items[0]?.wefact_code;
-    alert("wefact_code: " + (wefactCode || "LEEG"));
     if (wefactCode) {
       try {
-        const result = await downloadInvoicePDF(wefactCode);
-        alert("WeFact result: base64 lengte=" + (result.base64?.length || 0) + ", filename=" + result.filename);
-        const { base64, filename } = result;
+        const { base64, filename } = await downloadInvoicePDF(wefactCode);
         const byteChars = atob(base64);
         const byteArray = new Uint8Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
@@ -576,7 +571,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
         return;
-      } catch (e) { alert("WeFact PDF fout: " + e.message); }
+      } catch (e) { console.warn("WeFact PDF:", e.message); }
     }
 
     // Fallback: lokale PDF genereren

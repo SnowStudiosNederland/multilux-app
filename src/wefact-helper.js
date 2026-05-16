@@ -122,7 +122,9 @@ export async function createInvoice({ debtorCode, orderNr, items, producten }) {
 }
 
 export async function getInvoice(invoiceCode) {
-  const data = await wefactCall("invoice", "show", { InvoiceCode: invoiceCode });
+  const isNumeric = /^\d+$/.test(invoiceCode);
+  const params = isNumeric ? { Identifier: parseInt(invoiceCode) } : { InvoiceCode: invoiceCode };
+  const data = await wefactCall("invoice", "show", params);
   return data.invoice || null;
 }
 
@@ -134,26 +136,25 @@ export async function listInvoices(debtorCode) {
 }
 
 export async function downloadInvoicePDF(invoiceCode) {
-  // Probeer direct met InvoiceCode
+  // Probeer met Identifier (numeriek, verandert nooit)
+  const isNumeric = /^\d+$/.test(invoiceCode);
+  
+  if (isNumeric) {
+    try {
+      const data = await wefactCall("invoice", "download", { Identifier: parseInt(invoiceCode) });
+      if (data.invoice?.Base64) {
+        return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur.pdf` };
+      }
+    } catch (e) { /* probeer als InvoiceCode */ }
+  }
+
+  // Probeer met InvoiceCode
   try {
     const data = await wefactCall("invoice", "download", { InvoiceCode: invoiceCode });
     if (data.invoice?.Base64) {
       return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
     }
-  } catch (e) { /* niet gevonden, zoek op andere manier */ }
-
-  // Zoek de factuur op via list en gebruik dan het juiste ID
-  try {
-    const listData = await wefactCall("invoice", "list", { searchat: "InvoiceCode", searchfor: invoiceCode });
-    const invoices = listData.invoices || [];
-    if (invoices.length > 0) {
-      const code = invoices[0].InvoiceCode || invoices[0].Identifier;
-      const data = await wefactCall("invoice", "download", { InvoiceCode: code });
-      if (data.invoice?.Base64) {
-        return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${code}.pdf` };
-      }
-    }
-  } catch (e) { /* ook niet gevonden */ }
+  } catch (e) { /* niet gevonden */ }
 
   throw new Error("Factuur niet gevonden");
 }
