@@ -17,30 +17,52 @@ async function wefactCall(controller, action, params = {}) {
 // ── Debiteuren ─────────────────────────────────────────────
 
 export async function findOrCreateDebtor({ naam, email, bedrijf, telefoon }) {
-  // Eerst zoeken op e-mail
+  // Strategie 1: zoek op e-mail via list
   try {
     const searchData = await wefactCall("debtor", "list", { searchat: "EmailAddress", searchfor: email });
     const debtors = searchData.debtors || [];
     if (debtors.length > 0) {
+      console.log("WeFact: bestaande debiteur gevonden via e-mail", debtors[0].DebtorCode);
       return debtors[0].DebtorCode || debtors[0].Identifier || null;
     }
-  } catch (e) { /* zoeken mislukt, probeer aanmaken */ }
+  } catch (e) { console.warn("WeFact zoeken op e-mail mislukt:", e.message); }
 
-  // Niet gevonden, nieuwe debiteur aanmaken
-  const parts = naam.trim().split(" ");
-  const voornaam = parts[0] || "";
-  const achternaam = parts.slice(1).join(" ") || naam;
+  // Strategie 2: zoek op naam
+  try {
+    const nameData = await wefactCall("debtor", "searchbyname", { name: naam });
+    const found = nameData.debtors || [];
+    const match = found.find(d => (d.EmailAddress || "").toLowerCase() === email.toLowerCase());
+    if (match) {
+      console.log("WeFact: bestaande debiteur gevonden via naam", match.DebtorCode);
+      return match.DebtorCode || match.Identifier || null;
+    }
+  } catch (e) { console.warn("WeFact zoeken op naam mislukt:", e.message); }
 
-  const params = {
-    SurName: achternaam,
-    Initials: voornaam,
-    EmailAddress: email,
-  };
-  if (bedrijf) params.CompanyName = bedrijf;
-  if (telefoon) params.MobileNumber = telefoon;
+  // Strategie 3: haal alle debiteuren op en zoek op e-mail
+  try {
+    const allData = await wefactCall("debtor", "list", {});
+    const all = allData.debtors || [];
+    const match = all.find(d => (d.EmailAddress || "").toLowerCase() === email.toLowerCase());
+    if (match) {
+      console.log("WeFact: bestaande debiteur gevonden in volledige lijst", match.DebtorCode);
+      return match.DebtorCode || match.Identifier || null;
+    }
+  } catch (e) { console.warn("WeFact lijst ophalen mislukt:", e.message); }
 
-  const data = await wefactCall("debtor", "add", params);
-  return data.debtor?.Identifier || data.debtor?.DebtorCode || null;
+  // Strategie 4: nieuwe debiteur aanmaken
+  try {
+    const parts = naam.trim().split(" ");
+    const voornaam = parts[0] || "";
+    const achternaam = parts.slice(1).join(" ") || naam;
+    const params = { SurName: achternaam, Initials: voornaam, EmailAddress: email };
+    if (bedrijf) params.CompanyName = bedrijf;
+    if (telefoon) params.MobileNumber = telefoon;
+    const data = await wefactCall("debtor", "add", params);
+    console.log("WeFact: nieuwe debiteur aangemaakt", data.debtor?.DebtorCode);
+    return data.debtor?.Identifier || data.debtor?.DebtorCode || null;
+  } catch (e) { console.error("WeFact debiteur aanmaken mislukt:", e.message); }
+
+  return null;
 }
 
 // Legacy alias
@@ -91,7 +113,7 @@ export async function createInvoice({ debtorCode, orderNr, items, producten }) {
   });
 
   return {
-    code: invoiceData.invoice?.InvoiceCode || null,
+    code: invoiceData.invoice?.InvoiceCode || invoiceData.invoice?.Identifier || null,
     number: invoiceData.invoice?.InvoiceNumber || null,
   };
 }
@@ -109,11 +131,20 @@ export async function listInvoices(debtorCode) {
 }
 
 export async function downloadInvoicePDF(invoiceCode) {
-  const data = await wefactCall("invoice", "download", { InvoiceCode: invoiceCode });
-  if (data.invoice?.Base64) {
-    return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
+  // Probeer eerst met InvoiceCode
+  try {
+    const data = await wefactCall("invoice", "download", { InvoiceCode: invoiceCode });
+    if (data.invoice?.Base64) {
+      return { base64: data.invoice.Base64, filename: data.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
+    }
+  } catch (e) { /* probeer met Identifier */ }
+
+  // Probeer met Identifier
+  const data2 = await wefactCall("invoice", "download", { Identifier: invoiceCode });
+  if (data2.invoice?.Base64) {
+    return { base64: data2.invoice.Base64, filename: data2.invoice.Filename || `Factuur-${invoiceCode}.pdf` };
   }
-  throw new Error(data.errors?.join(", ") || "Geen PDF beschikbaar");
+  throw new Error("Factuur niet gevonden");
 }
 
 // ── Status mapping ─────────────────────────────────────────
