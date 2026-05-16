@@ -639,7 +639,9 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
           {orderList.map(([orderNr, items]) => {
             const wfCode = items[0]?.wefact_code;
             const wfStatus = items[0]?.wefact_status;
-            const wfStatusKleur = { concept: "#999", openstaand: "#E67E22", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
+            const wfStatusKleur = { openstaand: "#E67E22", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
+            const wfStatusLabel = { openstaand: "Openstaand", betaald: "Betaald", verlopen: "Verlopen", herinnering: "Herinnering", aanmaning: "Aanmaning" };
+            const toonWfStatus = wfStatus && wfStatus !== "geen" && wfStatus !== "concept";
             return (
             <Card key={orderNr} style={{ padding: 20 }}>
               <div className="ml-bestelling-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 1 ? 16 : 10 }}>
@@ -648,7 +650,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
                   {wfCode && <Btn small variant="ghost" onClick={() => downloadPDF(orderNr, items)} style={{ fontSize: 12, padding: "4px 10px" }}>⬇ Factuur</Btn>}
                   {!wfCode && <Btn small variant="ghost" onClick={() => downloadPDF(orderNr, items)} style={{ fontSize: 12, padding: "4px 10px" }}>⬇ PDF</Btn>}
                   <Badge color={statusKleur[items[0].status]}>{items[0].status}</Badge>
-                  {wfStatus && wfStatus !== "geen" && <Badge color={wfStatusKleur[wfStatus] || "#999"}>{wfStatus}</Badge>}
+                  {toonWfStatus && <Badge color={wfStatusKleur[wfStatus] || "#999"}>{wfStatusLabel[wfStatus] || wfStatus}</Badge>}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -957,7 +959,23 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
                     <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontFamily: "monospace" }}>{b.order_nr} · {fmtDate(b.created_at)}</div>
-                    {b.wefact_code && <div style={{ fontSize: 11, marginTop: 2 }}><Badge color={b.wefact_status === "betaald" ? "#27AE60" : b.wefact_status === "openstaand" ? "#E67E22" : "#999"}>{b.wefact_status || "concept"}</Badge> <span style={{ color: "var(--ml-text-light)", fontSize: 10 }}>WeFact: {b.wefact_code}</span></div>}
+                    {b.wefact_code && <div style={{ fontSize: 11, marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <Badge color={
+                        b.wefact_status === "betaald" ? "#27AE60" : 
+                        b.wefact_status === "openstaand" ? "#E67E22" : 
+                        b.wefact_status === "verlopen" || b.wefact_status === "aanmaning" ? "#E74C3C" : 
+                        b.wefact_status === "concept" ? "#999" : "#999"
+                      }>{
+                        b.wefact_status === "concept" ? "Concept" :
+                        b.wefact_status === "openstaand" ? "Verstuurd" :
+                        b.wefact_status === "betaald" ? "Betaald" :
+                        b.wefact_status === "verlopen" ? "Verlopen" :
+                        b.wefact_status === "herinnering" ? "Herinnering" :
+                        b.wefact_status === "aanmaning" ? "Aanmaning" :
+                        b.wefact_status || "Onbekend"
+                      }</Badge>
+                      <span style={{ color: "var(--ml-text-light)", fontSize: 10, fontFamily: "monospace" }}>WeFact: {b.wefact_code}</span>
+                    </div>}
                     <div className="ml-status-btns" style={{ display: "flex", gap: 6 }}>
                       {["nieuw", "verwerkt", "gereed", "geannuleerd"].map(s => (
                         <button key={s} onClick={() => onStatusUpdate(b.id, s)} style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, padding: "5px 12px", borderRadius: 6, cursor: "pointer", fontFamily: vars.fontFamily, background: b.status === s ? statusKleur[s] + "18" : "transparent", color: b.status === s ? statusKleur[s] : "var(--ml-text-light)", border: b.status === s ? `1.5px solid ${statusKleur[s]}44` : "1.5px solid var(--ml-border)", transition: "all .15s" }}>{s}</button>
