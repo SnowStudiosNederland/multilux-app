@@ -877,6 +877,8 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
   const [zoek, setZoek] = useState("");
   const [syncing, setSyncing] = useState(false);
   const zoekLower = zoek.toLowerCase();
+
+  useEffect(() => { setSyncing(true); onSyncWeFact().finally(() => setSyncing(false)); }, []);
   const gefilterd = zoek ? bestellingen.filter(b => {
     const prod = producten.find(p => p.id === b.product_id);
     return [b.order_nr, prod?.naam, b.kleur, b.montage, b.opmerking, b.profielen?.naam, b.profielen?.email]
