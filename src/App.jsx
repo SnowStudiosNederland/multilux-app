@@ -8,23 +8,31 @@ const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ita
 const responsiveCSS = `
 @media (max-width: 768px) {
   .ml-login { flex-direction: column !important; }
-  .ml-login-left { display: none !important; }
-  .ml-login-right { width: 100% !important; padding: 32px 24px !important; }
+  .ml-login-left { display: flex !important; flex: none !important; padding: 32px 24px 24px !important; min-height: auto !important; }
+  .ml-login-left img { width: 160px !important; }
+  .ml-login-left p, .ml-login-left div:last-child { display: none !important; }
+  .ml-login-right { width: 100% !important; padding: 24px 24px 40px !important; }
   .ml-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .ml-product-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .ml-form-grid2 { grid-template-columns: 1fr !important; }
   .ml-form-grid3 { grid-template-columns: 1fr 1fr !important; }
-  .ml-page { padding: 20px !important; }
+  .ml-page { padding: 16px !important; }
   .ml-header-row { flex-direction: column !important; gap: 12px !important; align-items: stretch !important; }
-  .ml-header-btns { justify-content: flex-start !important; }
+  .ml-header-btns { justify-content: flex-start !important; flex-wrap: wrap !important; }
   .ml-order-card-row { flex-direction: column !important; }
   .ml-order-card-right { align-items: flex-start !important; }
   .ml-status-btns { flex-wrap: wrap !important; }
-  .ml-search-input { width: 100% !important; }
+  .ml-search-input { width: 100% !important; max-width: 100% !important; }
   .ml-table-wrap { overflow-x: auto; }
-  .ml-wacht-card { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
   .ml-klant-card { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
-  .ml-klant-btns { align-self: flex-start !important; }
+  .ml-klant-btns { align-self: flex-start !important; flex-wrap: wrap !important; }
+  .ml-product-card { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+  .ml-product-card-btns { align-self: stretch !important; flex-wrap: wrap !important; }
+  .ml-prijs-card { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+  .ml-prijs-card-btns { align-self: stretch !important; flex-wrap: wrap !important; }
+  .ml-bestelling-header { flex-direction: column !important; gap: 8px !important; }
+  .ml-bestelling-btns { flex-wrap: wrap !important; gap: 6px !important; }
+  h1 { font-size: 24px !important; }
 }
 `;
 
@@ -182,7 +190,7 @@ function Sidebar({ profiel, actief, onNav, onLogout, isMobile }) {
         {/* Top bar */}
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 56, background: "#FFFFFF", borderBottom: "1px solid var(--ml-border)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", zIndex: 1000, fontFamily: vars.fontFamily }}>
           <img src={ML_LOGO_DARK} alt="Multilux" style={{ height: 20,  }} />
-          <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
+          <button onClick={() => setOpen(!open)} style={{ background: "none", border: "none", color: "var(--ml-text)", fontSize: 24, cursor: "pointer", padding: 4 }}>{open ? "✕" : "☰"}</button>
         </div>
         {/* Spacer */}
         <div style={{ height: 56 }} />
@@ -342,13 +350,11 @@ function BestelForm({ profiel, producten, onBesteld }) {
     const inserts = regels.map(r => ({ order_nr: orderNr, klant_id: profiel.id, product_id: r.product_id, kleur: r.kleur, breedte: r.breedte, hoogte: r.hoogte, montage: r.montage, bedienzijde: r.bedienzijde, bediening: r.bediening, aantal: r.aantal, opmerking, variant: r.variant, prijsgroep: r.prijsgroep, stukprijs: r.prijs }));
     const { error } = await supabase.from("bestellingen").insert(inserts);
     if (error) { setLoading(false); alert("Fout: " + error.message); return; }
-    // WeFact: automatisch debiteur aanmaken als die er nog niet is, dan factuur
+    // WeFact: automatisch debiteur zoeken/aanmaken, dan factuur
     try {
       let wfCode = profiel.wefact_code;
-      alert("Stap 1: wefact_code = " + (wfCode || "LEEG"));
       if (!wfCode) {
         wfCode = await createDebtor({ naam: profiel.naam, email: profiel.email, bedrijf: profiel.bedrijf, telefoon: profiel.telefoon });
-        alert("Stap 2: createDebtor resultaat = " + (wfCode || "NULL"));
         if (wfCode) {
           await supabase.from("profielen").update({ wefact_code: wfCode }).eq("id", profiel.id);
           profiel.wefact_code = wfCode;
@@ -356,12 +362,9 @@ function BestelForm({ profiel, producten, onBesteld }) {
       }
       if (wfCode) {
         const wfResult = await createInvoice({ debtorCode: wfCode, orderNr, items: regels, producten });
-        alert("Stap 3: factuur resultaat = " + JSON.stringify(wfResult));
         if (wfResult.code) await supabase.from("bestellingen").update({ wefact_code: wfResult.code, wefact_status: "concept" }).eq("order_nr", orderNr);
-      } else {
-        alert("Stap 2b: Geen wfCode, factuur wordt niet aangemaakt");
       }
-    } catch (e) { alert("WeFact fout: " + e.message); }
+    } catch (e) { console.warn("WeFact:", e.message); }
     setLoading(false);
     setSucces(true); onBesteld();
     setTimeout(() => { setSucces(false); setProductId(""); setKleur(""); setVariant(""); setBreedte(""); setHoogte(""); setMontage(""); setBedienzijde("Links"); setBediening(""); setAantal("1"); setOpmerking(""); setErrors({}); setRegels([]); }, 3000);
@@ -840,6 +843,7 @@ function AdminDashboard({ bestellingen, producten }) {
       <Card>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Recente Bestellingen</h3>
         {bestellingen.length === 0 ? (<p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Nog geen bestellingen.</p>) : (
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 500 }}>
             <thead><tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>{["Order", "Product", "Maten", "Status", "Datum"].map(h => (<th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "var(--ml-text-light)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>))}</tr></thead>
             <tbody>
@@ -849,6 +853,7 @@ function AdminDashboard({ bestellingen, producten }) {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -913,11 +918,11 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Bestellingen</h1>
           <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer en verwerk alle bestellingen.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="ml-bestelling-btns" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <Btn onClick={async () => { setSyncing(true); await onSyncWeFact(); setSyncing(false); }} variant="outline" small disabled={syncing}>{syncing ? "Synchroniseren..." : "↻ WeFact sync"}</Btn>
           <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
           <div style={{ position: "relative" }}>
-            <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek..."
+            <input value={zoek} onChange={e => setZoek(e.target.value)} placeholder="Zoek..." className="ml-search-input"
               style={{ fontFamily: vars.fontFamily, fontSize: 14, padding: "10px 14px 10px 36px", border: "1.5px solid var(--ml-border)", borderRadius: 8, background: "#fff", color: "var(--ml-text)", outline: "none", width: "100%", maxWidth: 220 }} />
             <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "var(--ml-text-light)" }}>⌕</span>
           </div>
@@ -1163,7 +1168,7 @@ function AdminKlanten({ klanten, onRefresh }) {
       <div className="ml-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Klanten</h1>
-          <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer gebruikersaccounts en goedkeuringen.</p>
+          <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: 0 }}>Beheer gebruikersaccounts en uitnodigingen.</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Btn onClick={handleExport} variant="outline" small>⬇ Exporteren</Btn>
@@ -1210,7 +1215,7 @@ function AdminKlanten({ klanten, onRefresh }) {
               const naam = [d.Initials, d.SurName].filter(Boolean).join(" ") || d.CompanyName || "—";
               return (
                 <Card key={code} style={{ padding: 16, border: "1.5px solid var(--ml-accent)33" }}>
-                  <div className="ml-klant-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div className="ml-klant-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{naam}{d.CompanyName && d.SurName && <span style={{ fontWeight: 400, color: "var(--ml-text-light)" }}> — {d.CompanyName}</span>}</div>
                       <div style={{ fontSize: 12, color: "var(--ml-text-light)", marginTop: 2 }}>{d.EmailAddress || "Geen e-mail"}{(d.MobileNumber || d.PhoneNumber) && <span> · {d.MobileNumber || d.PhoneNumber}</span>}</div>
@@ -1407,7 +1412,7 @@ function AdminProducten({ producten, onRefresh }) {
                 <div style={{ display: "flex", gap: 8 }}><Btn small onClick={saveEdit}>Opslaan</Btn><Btn small variant="ghost" onClick={() => setEditing(null)}>Annuleren</Btn></div>
               </div>
             ) : (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className="ml-product-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", opacity: p.actief ? 1 : 0.4, flexShrink: 0 }}>{PRODUCT_IMAGES[p.naam] ? <img src={PRODUCT_IMAGES[p.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{p.icon}</div>}</div>
                   <div>
@@ -1420,7 +1425,7 @@ function AdminProducten({ producten, onRefresh }) {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
+                <div className="ml-product-card-btns" style={{ display: "flex", gap: 8 }}><Btn small variant="outline" onClick={() => startEdit(p)}>Bewerken</Btn><Btn small variant={p.actief ? "ghost" : "accent"} onClick={() => toggleActief(p)}>{p.actief ? "Deactiveer" : "Activeer"}</Btn></div>
               </div>
             )}
           </Card>
@@ -1466,7 +1471,7 @@ function AdminPrijzen({ producten, onRefresh }) {
           const isExpanded = expandedProd === prod.id;
           return (
             <Card key={prod.id} style={{ padding: 24 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isExpanded ? 20 : 0 }}>
+              <div className="ml-prijs-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isExpanded ? 20 : 0 }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--ml-surface-alt)", overflow: "hidden", flexShrink: 0 }}>
                     {PRODUCT_IMAGES[prod.naam] ? <img src={PRODUCT_IMAGES[prod.naam]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{prod.icon}</div>}
