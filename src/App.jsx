@@ -640,7 +640,7 @@ function MijnBestellingen({ bestellingen, producten, loading, profiel }) {
             const wfCode = items[0]?.wefact_code;
             const wfStatus = items[0]?.wefact_status;
             const wfStatusKleur = { openstaand: "#E67E22", deels_betaald: "#F39C12", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
-            const wfStatusLabel = { openstaand: "Openstaand", deels_betaald: "Deels betaald", betaald: "Betaald", verlopen: "Verlopen", herinnering: "Herinnering", aanmaning: "Aanmaning" };
+            const wfStatusLabel = { openstaand: "Factuur verstuurd", deels_betaald: "Factuur deels betaald", betaald: "Factuur betaald", verlopen: "Factuur verlopen", herinnering: "Factuur herinnering", aanmaning: "Factuur aanmaning" };
             const toonWfStatus = wfStatus && wfStatus !== "geen" && wfStatus !== "concept";
             return (
             <Card key={orderNr} style={{ padding: 20 }}>
@@ -967,13 +967,13 @@ function AdminBestellingen({ bestellingen, producten, onStatusUpdate, onSyncWeFa
                         b.wefact_status === "verlopen" || b.wefact_status === "aanmaning" ? "#E74C3C" : 
                         b.wefact_status === "concept" ? "#999" : "#999"
                       }>{
-                        b.wefact_status === "concept" ? "Concept" :
-                        b.wefact_status === "openstaand" ? "Verstuurd" :
-                        b.wefact_status === "deels_betaald" ? "Deels betaald" :
-                        b.wefact_status === "betaald" ? "Betaald" :
-                        b.wefact_status === "verlopen" ? "Verlopen" :
-                        b.wefact_status === "herinnering" ? "Herinnering" :
-                        b.wefact_status === "aanmaning" ? "Aanmaning" :
+                        b.wefact_status === "concept" ? "Factuur concept" :
+                        b.wefact_status === "openstaand" ? "Factuur verstuurd" :
+                        b.wefact_status === "deels_betaald" ? "Factuur deels betaald" :
+                        b.wefact_status === "betaald" ? "Factuur betaald" :
+                        b.wefact_status === "verlopen" ? "Factuur verlopen" :
+                        b.wefact_status === "herinnering" ? "Factuur herinnering" :
+                        b.wefact_status === "aanmaning" ? "Factuur aanmaning" :
                         b.wefact_status || "Onbekend"
                       }</Badge>
                       <span style={{ color: "var(--ml-text-light)", fontSize: 10, fontFamily: "monospace" }}>WeFact: {b.wefact_code}</span>
