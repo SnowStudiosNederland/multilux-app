@@ -8,9 +8,12 @@ const fonts = `@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ita
 const responsiveCSS = `
 @media (max-width: 768px) {
   .ml-login { flex-direction: column !important; }
-  .ml-login-left { display: flex !important; flex: none !important; padding: 32px 24px 24px !important; min-height: auto !important; }
-  .ml-login-left img { width: 160px !important; }
-  .ml-login-left p, .ml-login-left div:last-child { display: none !important; }
+  .ml-login-left { display: flex !important; flex: none !important; padding: 28px 24px 20px !important; min-height: auto !important; background: #F5F2EE !important; }
+  .ml-login-left > div:first-of-type, .ml-login-left > div:nth-of-type(2) { display: none !important; }
+  .ml-login-left > div:last-of-type { opacity: 1 !important; transform: none !important; }
+  .ml-login-left > div:last-of-type img { width: 160px !important; margin-bottom: 4px !important; }
+  .ml-login-left > div:last-of-type > div:nth-child(2) { font-size: 11px !important; letter-spacing: 3px !important; margin-top: 4px !important; }
+  .ml-login-left > div:last-of-type > div:nth-child(3), .ml-login-left > div:last-of-type > p { display: none !important; }
   .ml-login-right { width: 100% !important; padding: 24px 24px 40px !important; }
   .ml-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .ml-product-grid { grid-template-columns: repeat(2, 1fr) !important; }
