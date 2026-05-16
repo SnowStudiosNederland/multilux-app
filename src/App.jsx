@@ -1698,13 +1698,14 @@ function AdminPrijzen({ producten, onRefresh }) {
                   const isBO = secs[0]?.type === "breedte_only";
                   return (
                     <div style={{ padding: 16, background: "var(--ml-surface-alt)", borderRadius: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                         <div style={{ fontWeight: 600, fontSize: 15 }}>{v.naam}</div>
                         <div style={{ display: "flex", gap: 8 }}>
                           {isEd && !isBO && <Btn small variant="outline" onClick={() => addSection(expandedVar)}>+ Prijsgroep</Btn>}
                           {isEd && <Btn small variant="ghost" onClick={() => removeVariant(expandedVar)} style={{ color: "var(--ml-error)" }}>Verwijderen</Btn>}
                         </div>
                       </div>
+                      {isEd && <div style={{ padding: "10px 14px", borderRadius: 8, background: "#FFF8E1", border: "1px solid #FFE082", fontSize: 12, color: "#7B6B00", marginBottom: 16 }}>💡 Voer alle prijzen <strong>exclusief BTW</strong> in. De BTW wordt automatisch berekend via WeFact.</div>}
                       {isBO ? (
                         <div style={{ overflowX: "auto" }}>
                           <table style={{ borderCollapse: "collapse" }}>
