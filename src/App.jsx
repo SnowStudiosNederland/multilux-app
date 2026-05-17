@@ -1728,10 +1728,10 @@ function AdminPrijzen({ producten, onRefresh }) {
                         return (
                         <div style={{ overflowX: "auto" }}>
                           <table style={{ borderCollapse: "collapse" }}>
-                            <thead><tr><th style={hs}>Breedte</th>{pgs.map((pg, i) => <th key={i} style={hs}>{pg}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
+                            <thead><tr><th style={{ ...hs, background: "var(--ml-primary)", color: "#fff", fontSize: 10, minWidth: 80 }}>Breedte (cm)</th>{pgs.map((pg, i) => <th key={i} style={{ ...hs, background: "#E8E4DC" }}>{pg}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
                             <tbody>{rijen.map((rij, ri) => (
                               <tr key={ri}>
-                                <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.breedte} onChange={e => updateRowKey(expandedVar, 0, ri, "breedte", e.target.value)} style={is} /> : rij.breedte}</td>
+                                <td style={{ ...cs, fontWeight: 600, background: "#E8E4DC", textAlign: "center" }}>{isEd ? <input type="number" value={rij.breedte} onChange={e => updateRowKey(expandedVar, 0, ri, "breedte", e.target.value)} style={{ ...is, fontWeight: 600 }} /> : <span>{rij.breedte} cm</span>}</td>
                                 {pgs.map((pg, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={rij.prijzen?.[pg] || rij.prijzen?.[ci] || 0} onChange={e => updateCell(expandedVar, 0, ri, ci, e.target.value)} style={is} /> : <span>€ {(rij.prijzen?.[pg] || rij.prijzen?.[ci] || 0).toFixed(2)}</span>}</td>)}
                                 {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, 0, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>✕</button></td>}
                               </tr>
@@ -1745,10 +1745,16 @@ function AdminPrijzen({ producten, onRefresh }) {
                           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{sec.prijsgroep}</div>
                           <div style={{ overflowX: "auto" }}>
                             <table style={{ borderCollapse: "collapse" }}>
-                              <thead><tr><th style={hs}>Hoogte \ Breedte</th>{(sec.breedtes || []).map((b, i) => <th key={i} style={hs}>{isEd ? <input type="number" value={typeof b === "string" ? parseInt(b) : b} onChange={e => { const m = JSON.parse(JSON.stringify(editMatrix)); m.matrix.varianten[expandedVar].data[si].breedtes[i] = +e.target.value; setEditMatrix(m); }} style={{ ...is, width: 55, textAlign: "center" }} /> : b}</th>)}{isEd && <th style={hs}></th>}</tr></thead>
+                              <thead>
+                                <tr>
+                                  <th style={{ ...hs, background: "var(--ml-primary)", color: "#fff", fontSize: 10, minWidth: 80 }}>Hoogte ↓ \ Breedte →</th>
+                                  {(sec.breedtes || []).map((b, i) => <th key={i} style={{ ...hs, background: "#E8E4DC", minWidth: 70 }}>{isEd ? <input type="number" value={typeof b === "string" ? parseInt(b) : b} onChange={e => { const m = JSON.parse(JSON.stringify(editMatrix)); m.matrix.varianten[expandedVar].data[si].breedtes[i] = +e.target.value; setEditMatrix(m); }} style={{ ...is, width: 55, textAlign: "center", fontWeight: 600 }} /> : <span>{b} cm</span>}</th>)}
+                                  {isEd && <th style={hs}></th>}
+                                </tr>
+                              </thead>
                               <tbody>{(sec.rijen || []).map((rij, ri) => (
                                 <tr key={ri}>
-                                  <td style={{ ...cs, fontWeight: 600 }}>{isEd ? <input type="number" value={rij.hoogte} onChange={e => updateRowKey(expandedVar, si, ri, "hoogte", e.target.value)} style={is} /> : rij.hoogte}</td>
+                                  <td style={{ ...cs, fontWeight: 600, background: "#E8E4DC", textAlign: "center" }}>{isEd ? <input type="number" value={rij.hoogte} onChange={e => updateRowKey(expandedVar, si, ri, "hoogte", e.target.value)} style={{ ...is, fontWeight: 600 }} /> : <span>{rij.hoogte} cm</span>}</td>
                                   {(rij.prijzen || []).map((p, ci) => <td key={ci} style={cs}>{isEd ? <input type="number" step="0.01" value={p || 0} onChange={e => updateCell(expandedVar, si, ri, ci, e.target.value)} style={is} /> : <span>{p ? "€" + p.toFixed(2) : "—"}</span>}</td>)}
                                   {isEd && <td style={cs}><button onClick={() => removeRow(expandedVar, si, ri)} style={{ background: "none", border: "none", color: "var(--ml-error)", cursor: "pointer" }}>✕</button></td>}
                                 </tr>
