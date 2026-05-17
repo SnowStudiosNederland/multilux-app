@@ -877,40 +877,126 @@ function StandaardMaten({ profiel, producten }) {
 }
 
 function AdminDashboard({ bestellingen, producten }) {
-  const stats = { totaal: bestellingen.length, nieuw: bestellingen.filter(b => b.status === "nieuw").length, verwerkt: bestellingen.filter(b => b.status === "verwerkt").length, gereed: bestellingen.filter(b => b.status === "gereed").length };
+  const stats = {
+    totaal: bestellingen.length,
+    nieuw: bestellingen.filter(b => b.status === "nieuw").length,
+    verwerkt: bestellingen.filter(b => b.status === "verwerkt").length,
+    gereed: bestellingen.filter(b => b.status === "gereed").length,
+  };
+  const wfStats = {
+    concept: bestellingen.filter(b => b.wefact_status === "concept").length,
+    verstuurd: bestellingen.filter(b => b.wefact_status === "openstaand").length,
+    betaald: bestellingen.filter(b => b.wefact_status === "betaald").length,
+    verlopen: bestellingen.filter(b => b.wefact_status === "verlopen" || b.wefact_status === "herinnering" || b.wefact_status === "aanmaning").length,
+    geenFactuur: bestellingen.filter(b => !b.wefact_code).length,
+  };
+  const orders = [...new Set(bestellingen.map(b => b.order_nr))];
+  const vandaag = new Date().toISOString().split("T")[0];
+  const vandaagBest = bestellingen.filter(b => b.created_at?.startsWith(vandaag)).length;
   const statCards = [
     { label: "Totaal", waarde: stats.totaal, kleur: "var(--ml-primary)", icon: "☰" },
     { label: "Nieuw", waarde: stats.nieuw, kleur: "var(--ml-warning)", icon: "●" },
     { label: "In Behandeling", waarde: stats.verwerkt, kleur: "#2980B9", icon: "◐" },
     { label: "Gereed", waarde: stats.gereed, kleur: "var(--ml-success)", icon: "✓" },
   ];
+  const factuurCards = [
+    { label: "Concept", waarde: wfStats.concept, kleur: "#999", icon: "◻" },
+    { label: "Verstuurd", waarde: wfStats.verstuurd, kleur: "#E67E22", icon: "✉" },
+    { label: "Betaald", waarde: wfStats.betaald, kleur: "#27AE60", icon: "€" },
+    { label: "Verlopen", waarde: wfStats.verlopen, kleur: "#E74C3C", icon: "!" },
+  ];
   return (
     <div className="ml-page" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-text)", margin: "0 0 4px" }}>Dashboard</h1>
-      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van alle bestellingen</p>
-      <div className="ml-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
+      <p style={{ fontSize: 14, color: "var(--ml-text-light)", margin: "0 0 28px" }}>Overzicht van bestellingen en facturen</p>
+
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--ml-text-light)", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>Bestellingen</h3>
+      <div className="ml-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
         {statCards.map(s => (
-          <Card key={s.label} style={{ padding: 24 }}>
+          <Card key={s.label} style={{ padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
-                <div style={{ fontSize: 36, fontWeight: 700, color: s.kleur, marginTop: 8, fontFamily: "'Playfair Display', serif" }}>{s.waarde}</div>
+                <div style={{ fontSize: 11, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 32, fontWeight: 700, color: s.kleur, marginTop: 6, fontFamily: "'Playfair Display', serif" }}>{s.waarde}</div>
               </div>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: s.kleur + "12", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: s.kleur }}>{s.icon}</div>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: s.kleur + "12", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: s.kleur }}>{s.icon}</div>
             </div>
           </Card>
         ))}
       </div>
+
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--ml-text-light)", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>Facturen (WeFact)</h3>
+      <div className="ml-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
+        {factuurCards.map(s => (
+          <Card key={s.label} style={{ padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 32, fontWeight: 700, color: s.kleur, marginTop: 6, fontFamily: "'Playfair Display', serif" }}>{s.waarde}</div>
+              </div>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: s.kleur + "12", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: s.kleur }}>{s.icon}</div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {(wfStats.geenFactuur > 0 || wfStats.verlopen > 0) && (
+        <div style={{ display: "flex", gap: 16, marginBottom: 28 }}>
+          {wfStats.geenFactuur > 0 && (
+            <Card style={{ flex: 1, padding: "16px 20px", border: "1.5px solid var(--ml-warning)44" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 20 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{wfStats.geenFactuur} bestelling{wfStats.geenFactuur > 1 ? "en" : ""} zonder factuur</div>
+                  <div style={{ fontSize: 12, color: "var(--ml-text-light)" }}>Geen WeFact-koppeling aanwezig.</div>
+                </div>
+              </div>
+            </Card>
+          )}
+          {wfStats.verlopen > 0 && (
+            <Card style={{ flex: 1, padding: "16px 20px", border: "1.5px solid var(--ml-error)44" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 20 }}>🔴</span>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{wfStats.verlopen} factuur/facturen verlopen</div>
+                  <div style={{ fontSize: 12, color: "var(--ml-text-light)" }}>Betaaltermijn verstreken.</div>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }} className="ml-form-grid2">
+        <Card style={{ padding: 20 }}>
+          <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>Unieke orders</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "var(--ml-primary)", marginTop: 6 }}>{orders.length}</div>
+        </Card>
+        <Card style={{ padding: 20 }}>
+          <div style={{ fontSize: 12, color: "var(--ml-text-light)", fontWeight: 500, textTransform: "uppercase", letterSpacing: 1 }}>Vandaag geplaatst</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: vandaagBest > 0 ? "var(--ml-success)" : "var(--ml-text-light)", marginTop: 6 }}>{vandaagBest}</div>
+        </Card>
+      </div>
+
       <Card>
         <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px", color: "var(--ml-primary)" }}>Recente Bestellingen</h3>
         {bestellingen.length === 0 ? (<p style={{ color: "var(--ml-text-light)", fontSize: 14 }}>Nog geen bestellingen.</p>) : (
           <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 500 }}>
-            <thead><tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>{["Order", "Product", "Maten", "Status", "Datum"].map(h => (<th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "var(--ml-text-light)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>))}</tr></thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 600 }}>
+            <thead><tr style={{ borderBottom: "2px solid var(--ml-surface-alt)" }}>{["Order", "Product", "Maten", "Status", "Factuur", "Datum"].map(h => (<th key={h} style={{ textAlign: "left", padding: "10px 12px", color: "var(--ml-text-light)", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>{h}</th>))}</tr></thead>
             <tbody>
-              {bestellingen.slice(-8).reverse().map(b => {
+              {bestellingen.slice(-10).reverse().map(b => {
                 const prod = producten.find(p => p.id === b.product_id);
-                return (<tr key={b.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}><td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace" }}>{b.order_nr}</td><td style={{ padding: "10px 12px" }}>{prod?.naam} – {b.kleur}</td><td style={{ padding: "10px 12px" }}>{b.breedte}×{b.hoogte} mm</td><td style={{ padding: "10px 12px" }}><Badge color={statusKleur[b.status]}>{b.status}</Badge></td><td style={{ padding: "10px 12px", color: "var(--ml-text-light)" }}>{fmtDate(b.created_at)}</td></tr>);
+                const wfLabel = { concept: "Concept", openstaand: "Verstuurd", betaald: "Betaald", verlopen: "Verlopen", herinnering: "Herinnering", aanmaning: "Aanmaning" };
+                const wfKleur = { concept: "#999", openstaand: "#E67E22", betaald: "#27AE60", verlopen: "#E74C3C", herinnering: "#E67E22", aanmaning: "#E74C3C" };
+                return (<tr key={b.id} style={{ borderBottom: "1px solid var(--ml-surface-alt)" }}>
+                  <td style={{ padding: "10px 12px", fontWeight: 600, fontFamily: "monospace" }}>{b.order_nr}</td>
+                  <td style={{ padding: "10px 12px" }}>{prod?.naam} – {b.kleur}</td>
+                  <td style={{ padding: "10px 12px" }}>{b.breedte}×{b.hoogte} mm</td>
+                  <td style={{ padding: "10px 12px" }}><Badge color={statusKleur[b.status]}>{b.status}</Badge></td>
+                  <td style={{ padding: "10px 12px" }}>{b.wefact_status && b.wefact_status !== "geen" ? <Badge color={wfKleur[b.wefact_status] || "#999"}>{wfLabel[b.wefact_status] || b.wefact_status}</Badge> : <span style={{ color: "var(--ml-text-light)", fontSize: 11 }}>—</span>}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--ml-text-light)" }}>{fmtDate(b.created_at)}</td>
+                </tr>);
               })}
             </tbody>
           </table>
