@@ -89,6 +89,8 @@ export async function getAllDebtors() {
     all = all.concat(result.debtors);
     totalPages = result.totalPages;
     page++;
+    // Kleine vertraging tussen paginacalls om WeFact rate limit te respecteren
+    if (page <= totalPages) await new Promise(r => setTimeout(r, 300));
   } while (page <= totalPages);
   return all;
 }
